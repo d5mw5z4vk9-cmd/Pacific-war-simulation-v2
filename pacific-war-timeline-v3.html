@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>太平洋戦争 戦況図 1941–1945</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ocean-deep:#06121f;
+  --ocean:#0a1c2e;
+  --land:#222b20;
+  --land-edge:#3c4634;
+  --jp-red:#d6453c;
+  --jp-red-dim:rgba(214,69,60,.13);
+  --allied-blue:#4e9bd4;
+  --home-violet:#b08fd8;
+  --paper:#e8dfc8;
+  --paper-dim:#a89f87;
+  --gold:#c9a35c;
+  --panel:#101b14;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--ocean-deep);
+  color:var(--paper);
+  font-family:'Noto Sans JP',sans-serif;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+header{
+  display:flex;align-items:baseline;gap:14px;
+  padding:10px 18px 8px;
+  border-bottom:1px solid rgba(201,163,92,.25);
+  background:linear-gradient(180deg,#0d1a14,#0a1410);
+  flex-shrink:0;
+}
+header h1{
+  font-family:'Shippori Mincho',serif;font-weight:800;
+  font-size:clamp(16px,2.2vw,22px);letter-spacing:.12em;
+}
+header .sub{font-size:11px;color:var(--paper-dim);letter-spacing:.08em}
+header .phase-chip{
+  margin-left:auto;font-family:'Shippori Mincho',serif;font-weight:700;
+  font-size:clamp(11px,1.5vw,14px);color:var(--gold);
+  border:1px solid rgba(201,163,92,.5);border-radius:2px;
+  padding:3px 12px;letter-spacing:.15em;white-space:nowrap;
+}
+#main{flex:1;display:flex;min-height:0}
+#mapwrap{
+  flex:1;position:relative;min-width:0;
+  background:radial-gradient(120% 100% at 50% 30%, #0e2438 0%, var(--ocean) 45%, var(--ocean-deep) 100%);
+}
+#mapwrap::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 120px rgba(0,0,0,.7);
+}
+#geostatus{
+  position:absolute;left:10px;top:8px;font-size:10px;color:var(--paper-dim);
+  background:rgba(6,18,31,.6);padding:2px 8px;border-radius:2px;pointer-events:none;
+}
+svg{width:100%;height:100%;display:block}
+.gridline{stroke:rgba(120,160,190,.07);stroke-width:1}
+.gridlabel{fill:rgba(150,180,200,.25);font-size:10px;font-family:'Noto Sans JP'}
+.land{fill:var(--land);stroke:var(--land-edge);stroke-width:1;transition:fill .5s,stroke .5s}
+.land.occ-jp{fill:#4e2a26;stroke:#7c4038}
+.land.occ-us{fill:#1f3a52;stroke:#3c6488}
+.land.occ-home{fill:#1b2e3e;stroke:#32506a}
+.island{fill:#2a3326;stroke:#46523c;stroke-width:1}
+.landlabel{fill:rgba(232,223,200,.42);font-size:11px;letter-spacing:.2em;pointer-events:none}
+.landlabel.small{font-size:9.5px;letter-spacing:.05em}
+.sealabel{fill:rgba(130,170,200,.3);font-size:10px;letter-spacing:.35em;font-style:italic;pointer-events:none}
+#zone{
+  fill:var(--jp-red-dim);
+  stroke:var(--jp-red);stroke-width:2;stroke-dasharray:7 4;
+  filter:url(#zoneglow);
+}
+/* battle / domestic markers */
+.marker{cursor:pointer}
+.marker circle.core{stroke:#06121f;stroke-width:1.5}
+.marker.jp circle.core{fill:var(--jp-red)}
+.marker.allied circle.core{fill:var(--allied-blue)}
+.marker.draw circle.core{fill:var(--gold)}
+.marker.end circle.core{fill:#e8dfc8}
+.marker.home circle.core{fill:var(--home-violet)}
+.marker text{
+  fill:var(--paper);font-size:10.5px;font-weight:500;
+  paint-order:stroke;stroke:rgba(4,10,18,.85);stroke-width:3px;
+  pointer-events:none;
+}
+.marker.home text{fill:#d9c8f0}
+.marker .ring{fill:none;stroke-width:2;opacity:0}
+.marker.active .ring{animation:pulse 1.6s ease-out infinite}
+.marker.jp .ring{stroke:var(--jp-red)}
+.marker.allied .ring{stroke:var(--allied-blue)}
+.marker.draw .ring{stroke:var(--gold)}
+.marker.end .ring{stroke:#fff}
+.marker.home .ring{stroke:var(--home-violet)}
+.marker.selected circle.core{stroke:#fff;stroke-width:2.5}
+@keyframes pulse{0%{r:5;opacity:.9}100%{r:22;opacity:0}}
+@media (prefers-reduced-motion: reduce){.marker.active .ring{animation:none}}
+/* unit (凸) markers */
+.unit{cursor:pointer}
+.unit path.box{stroke-width:1.4}
+.unit.jp path.box{fill:rgba(180,40,32,.92);stroke:#ffb1a8}
+.unit.us path.box{fill:rgba(38,92,140,.92);stroke:#a8d4f5}
+.unit text.br{fill:#fff;font-size:8.5px;font-weight:700;text-anchor:middle;pointer-events:none}
+.unit text.uname{
+  fill:#f3ecd8;font-size:9px;text-anchor:middle;
+  paint-order:stroke;stroke:rgba(4,10,18,.9);stroke-width:2.5px;pointer-events:none;
+}
+.unit.jp text.uname{fill:#ffd2cc}
+.unit.us text.uname{fill:#c4e2fa}
+.unit.selected path.box{stroke:#fff;stroke-width:2.2;filter:drop-shadow(0 0 6px rgba(255,255,255,.6))}
+.unit g.inner{transition:transform .25s ease}
+.trail{fill:none;stroke-width:1.3;stroke-dasharray:2 4;opacity:.55;pointer-events:none}
+.trail.jp{stroke:#e98079}
+.trail.us{stroke:#7fb8e2}
+
+#panel{
+  width:320px;flex-shrink:0;background:var(--panel);
+  border-left:1px solid rgba(201,163,92,.25);
+  display:flex;flex-direction:column;overflow-y:auto;
+  padding:16px 16px 20px;gap:14px;
+}
+#bigdate{
+  font-family:'Shippori Mincho',serif;font-weight:800;
+  font-size:30px;letter-spacing:.04em;line-height:1.1;
+}
+#bigdate small{font-size:14px;color:var(--paper-dim);display:block;margin-top:2px;letter-spacing:.1em}
+.boxtitle{
+  font-size:11px;color:var(--gold);letter-spacing:.3em;
+  border-bottom:1px solid rgba(201,163,92,.3);padding-bottom:5px;margin-bottom:8px;
+}
+#phasetext{font-size:12.5px;line-height:1.85;color:#cfc7ae}
+#detail{font-size:12.5px;line-height:1.85}
+#detail .dname{
+  font-family:'Shippori Mincho',serif;font-weight:700;font-size:17px;margin-bottom:2px;
+}
+#detail .ddate{font-size:11px;color:var(--paper-dim);margin-bottom:8px}
+#detail .badge{
+  display:inline-block;font-size:10.5px;padding:2px 9px;border-radius:2px;
+  margin:0 6px 8px 0;letter-spacing:.1em;
+}
+.badge.jp{background:rgba(214,69,60,.2);color:#f08a83;border:1px solid rgba(214,69,60,.5)}
+.badge.allied,.badge.us{background:rgba(78,155,212,.15);color:#8cc3ec;border:1px solid rgba(78,155,212,.5)}
+.badge.draw{background:rgba(201,163,92,.15);color:var(--gold);border:1px solid rgba(201,163,92,.5)}
+.badge.end{background:rgba(232,223,200,.12);color:var(--paper);border:1px solid rgba(232,223,200,.4)}
+.badge.home{background:rgba(176,143,216,.15);color:#cfb6ee;border:1px solid rgba(176,143,216,.5)}
+#detail .empty{color:var(--paper-dim);font-size:12px;line-height:1.8}
+#detail table{font-size:11.5px;border-collapse:collapse;margin:4px 0 8px;width:100%}
+#detail td{padding:2.5px 6px;border-bottom:1px solid rgba(201,163,92,.15);vertical-align:top}
+#detail td:first-child{color:var(--gold);white-space:nowrap;width:62px}
+/* force composition rows */
+#detail .comphead{font-size:10.5px;color:var(--gold);letter-spacing:.15em;margin:6px 0 3px}
+#detail .crow{
+  display:flex;align-items:center;gap:8px;
+  padding:3.5px 4px;border-bottom:1px solid rgba(201,163,92,.12);font-size:12px;
+}
+#detail .crow svg{width:26px;height:15px;flex-shrink:0}
+#detail .crow .ck{color:#cfc7ae;width:52px;flex-shrink:0;font-size:11px}
+#detail .crow .cv{font-weight:700;font-family:'Shippori Mincho',serif;letter-spacing:.03em}
+#detail .crow .tr{font-size:10px;margin-left:auto}
+#detail .tr.up{color:#7fd49a}
+#detail .tr.dn{color:#f08a83}
+.unit-ico-jp{fill:#f08a83}
+.unit-ico-us{fill:#8cc3ec}
+#eventlog{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto}
+#eventlog button{
+  all:unset;cursor:pointer;font-size:11.5px;padding:4px 6px;border-radius:2px;
+  color:#bfb79f;display:flex;gap:8px;align-items:baseline;
+}
+#eventlog button:hover,#eventlog button:focus-visible{background:rgba(201,163,92,.1);color:var(--paper);outline:none}
+#eventlog button:focus-visible{box-shadow:0 0 0 1px var(--gold)}
+#eventlog .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transform:translateY(-1px)}
+#eventlog .d-jp{background:var(--jp-red)} #eventlog .d-allied{background:var(--allied-blue)}
+#eventlog .d-draw{background:var(--gold)} #eventlog .d-end{background:#e8dfc8}
+#eventlog .d-home{background:var(--home-violet)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:10.5px;color:var(--paper-dim)}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.legend i.sq{border-radius:1px}
+.note{font-size:10px;color:#6e6754;line-height:1.6;margin-top:auto;padding-top:10px}
+
+/* ---- ① 総戦力比較タブ ---- */
+#forcetab{
+  position:absolute;right:10px;top:8px;width:228px;z-index:5;
+  background:rgba(10,18,14,.93);border:1px solid rgba(201,163,92,.4);border-radius:3px;
+  font-size:11px;
+}
+#forcetab .fthead{display:flex;align-items:center;gap:6px;padding:5px 9px;cursor:pointer;color:var(--gold);letter-spacing:.18em;font-size:10.5px;border-bottom:1px solid rgba(201,163,92,.25);user-select:none}
+#forcetab .fthead .arrow{margin-left:auto;transition:transform .2s;font-size:9px}
+#forcetab.closed .fthead{border-bottom:none}
+#forcetab.closed .ftbody{display:none}
+#forcetab.closed .fthead .arrow{transform:rotate(-90deg)}
+.ftbody{padding:5px 9px 8px}
+.ftcols{display:grid;grid-template-columns:24px 42px 1fr 1fr;gap:2px 5px;align-items:center}
+.ftcols .h{font-size:9.5px;color:var(--paper-dim);text-align:right;padding-bottom:2px;letter-spacing:.05em}
+.ftcols .h.jp{color:#f08a83}.ftcols .h.us{color:#8cc3ec}
+.ftcols svg{width:23px;height:13px;display:block}
+.ftk{font-size:9.5px;color:var(--paper-dim)}
+.ftv{text-align:right;font-family:'Shippori Mincho',serif;font-weight:700;font-size:12px;letter-spacing:.02em}
+.ftv.jp{color:#f6a9a2}.ftv.us{color:#a8d4f5}
+.ftnote{font-size:8.5px;color:#6e6754;margin-top:5px;line-height:1.5}
+/* ---- ② 戦闘詳細ビューア ---- */
+#bvOverlay{position:fixed;inset:0;background:rgba(3,8,14,.84);z-index:50;display:none;align-items:center;justify-content:center}
+#bvOverlay.open{display:flex}
+#bv{width:min(96vw,1240px);height:min(94vh,780px);background:#0b1410;border:1px solid rgba(201,163,92,.5);border-radius:4px;display:flex;flex-direction:column;box-shadow:0 0 60px rgba(0,0,0,.85)}
+#bvhead{display:flex;align-items:baseline;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(201,163,92,.3)}
+#bvhead h2{font-family:'Shippori Mincho',serif;font-size:19px;letter-spacing:.1em;font-weight:800}
+#bvhead .bvds{font-size:11px;color:var(--paper-dim)}
+#bvclose{all:unset;cursor:pointer;margin-left:auto;color:var(--gold);font-size:17px;width:30px;height:28px;text-align:center;border:1px solid rgba(201,163,92,.4);border-radius:3px;flex-shrink:0}
+#bvclose:hover,#bvclose:focus-visible{background:rgba(201,163,92,.15)}
+#bvmain{flex:1;display:flex;min-height:0}
+#bvmapwrap{flex:1;position:relative;background:radial-gradient(110% 100% at 50% 35%,#0d2236 0%,#081726 55%,#050f1a 100%)}
+#bvmap{width:100%;height:100%}
+#bvside{width:292px;flex-shrink:0;border-left:1px solid rgba(201,163,92,.25);padding:12px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:13px;font-size:12px}
+#bvphname{font-family:'Shippori Mincho',serif;font-weight:700;font-size:15px;color:var(--gold);margin-bottom:3px}
+#bvphtx{line-height:1.85;color:#cfc7ae;font-size:12px}
+#bvunit{line-height:1.8;font-size:12px}
+#bvunit .badge{margin-right:4px}
+#bvunit .dname{font-family:'Shippori Mincho',serif;font-weight:700;font-size:14.5px;margin-bottom:2px}
+#bvloss .li{display:flex;gap:7px;font-size:11px;padding:3px 0;border-bottom:1px solid rgba(201,163,92,.12);align-items:baseline;line-height:1.5}
+#bvloss .lt{color:var(--paper-dim);width:56px;flex-shrink:0;font-size:9.5px}
+#bvloss .li.jp{color:#f6a9a2}#bvloss .li.us{color:#a8d4f5}
+#bvtl{display:flex;align-items:center;gap:12px;padding:9px 16px;border-top:1px solid rgba(201,163,92,.3)}
+#bvplay{all:unset;cursor:pointer;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--gold);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+#bvplay:hover,#bvplay:focus-visible{background:rgba(201,163,92,.15)}
+#bvslider{flex:1;-webkit-appearance:none;appearance:none;height:5px;background:#2b3a4a;border-radius:3px;cursor:pointer}
+#bvslider::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--paper);border:3px solid var(--gold);box-shadow:0 0 8px rgba(201,163,92,.7)}
+#bvslider::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:var(--paper);border:3px solid var(--gold)}
+#bvtime{font-family:'Shippori Mincho',serif;font-weight:700;color:var(--gold);min-width:135px;text-align:right;font-size:13px}
+.bvland{fill:#22301f;stroke:#46523c;stroke-width:1}
+.bu{cursor:pointer}
+.bu .glyph{stroke-width:1.1}
+.bu.jp .glyph{fill:rgba(214,80,70,.95);stroke:#ffc4bd}
+.bu.us .glyph{fill:rgba(70,140,200,.95);stroke:#bfe0f8}
+.bu text{fill:#e8dfc8;font-size:9.5px;text-anchor:middle;paint-order:stroke;stroke:rgba(3,9,16,.9);stroke-width:2.5px;pointer-events:none}
+.bu.jp text{fill:#ffd2cc}.bu.us text{fill:#c4e2fa}
+.bu.dead .glyph{fill:#3a3f44 !important;stroke:#5c646c !important}
+.bu.dead text{fill:#8a9099}
+.bu.sel .glyph{stroke:#fff !important;stroke-width:2;filter:drop-shadow(0 0 5px rgba(255,255,255,.7))}
+.bu .fire{fill:none;stroke:#ff9b3d;stroke-width:2;opacity:.9;animation:firep 1.1s ease-out infinite}
+@keyframes firep{0%{r:7;opacity:.9}100%{r:17;opacity:0}}
+@media (prefers-reduced-motion: reduce){.bu .fire{animation:none;r:10;opacity:.7}}
+.bu .cross line{stroke:#ff5a4d;stroke-width:2.6;stroke-linecap:round}
+.strike{fill:none;stroke-width:1.4;stroke-dasharray:5 4;opacity:.75}
+.strike.jp{stroke:#ff8d82}.strike.us{stroke:#7fc0ee}
+.splane.jp{fill:#ff8d82}.splane.us{fill:#7fc0ee}
+.stlabel{fill:rgba(232,223,200,.78);font-size:9px;text-anchor:middle;paint-order:stroke;stroke:rgba(3,9,16,.85);stroke-width:2.2px;pointer-events:none}
+.bvopen-btn{all:unset;cursor:pointer;display:inline-block;margin-top:9px;padding:5px 13px;border:1px solid var(--gold);color:var(--gold);border-radius:2px;font-size:11.5px;letter-spacing:.12em}
+.bvopen-btn:hover,.bvopen-btn:focus-visible{background:rgba(201,163,92,.15)}
+#timeline{
+  flex-shrink:0;background:linear-gradient(180deg,#0c1812,#091009);
+  border-top:1px solid rgba(201,163,92,.3);
+  padding:10px 18px 12px;display:flex;flex-direction:column;gap:6px;
+}
+#tl-top{display:flex;align-items:center;gap:14px}
+#playbtn{
+  all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;
+  border:1.5px solid var(--gold);color:var(--gold);
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;
+}
+#playbtn:hover,#playbtn:focus-visible{background:rgba(201,163,92,.15)}
+#playbtn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#trackwrap{flex:1;position:relative;height:40px}
+#ticks{position:absolute;inset:0;pointer-events:none}
+.tick{position:absolute;top:4px;width:2px;height:9px;border-radius:1px;opacity:.85}
+.tick.home{top:28px;height:7px;opacity:.7}
+#slider{
+  -webkit-appearance:none;appearance:none;width:100%;position:absolute;left:0;top:14px;
+  height:14px;background:transparent;cursor:pointer;
+}
+#slider::-webkit-slider-runnable-track{height:5px;background:linear-gradient(90deg,#3a2522,#5a2d28 35%,#2b3a4a);border-radius:3px}
+#slider::-moz-range-track{height:5px;background:linear-gradient(90deg,#3a2522,#5a2d28 35%,#2b3a4a);border-radius:3px}
+#slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:var(--paper);border:3px solid var(--jp-red);margin-top:-6.5px;
+  box-shadow:0 0 10px rgba(214,69,60,.8);
+}
+#slider::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;
+  background:var(--paper);border:3px solid var(--jp-red);
+  box-shadow:0 0 10px rgba(214,69,60,.8);
+}
+#slider:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+#tl-bottom{display:flex;justify-content:space-between;align-items:center}
+#yearlabels{display:flex;gap:0;flex:1;justify-content:space-between;font-size:10px;color:var(--paper-dim);
+  letter-spacing:.1em;padding:0 4px}
+#layers{display:flex;gap:11px;font-size:11px;color:var(--paper-dim);flex-shrink:0;margin-left:18px}
+#layers label{display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none}
+#layers input{accent-color:var(--gold)}
+#tl-date{
+  font-family:'Shippori Mincho',serif;font-weight:700;font-size:15px;
+  min-width:118px;text-align:right;color:var(--gold);flex-shrink:0;letter-spacing:.05em;
+}
+@media(max-width:860px){
+  #main{flex-direction:column;overflow-y:auto}
+  #mapwrap{min-height:55vh;flex:none}
+  #panel{width:100%;border-left:none;border-top:1px solid rgba(201,163,92,.25)}
+  body{overflow:auto}
+  #layers{margin-left:8px;flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>太平洋戦争 戦況図</h1>
+  <span class="sub">開戦から敗戦まで 1941.12 – 1945.9</span>
+  <span class="phase-chip" id="phasechip">緒戦・進攻期</span>
+</header>
+
+<div id="main">
+  <div id="mapwrap">
+    <div id="geostatus">高精細海岸線を読み込み中…</div>
+    <div id="forcetab">
+      <div class="fthead" id="fthead">総 戦 力 比 較<span class="arrow">▼</span></div>
+      <div class="ftbody">
+        <div class="ftcols" id="ftgrid">
+          <span></span><span></span><span class="h jp">日本軍</span><span class="h us">連合軍</span>
+        </div>
+        <div class="ftnote">対日戦域の概数。兵員は動員総数、空母は軽空母を含む（護衛空母除く）。時間とともに推移します。</div>
+      </div>
+    </div>
+    <svg id="map" viewBox="0 0 1200 740" preserveAspectRatio="xMidYMid meet" role="img" aria-label="太平洋戦域の戦況地図">
+      <defs>
+        <filter id="zoneglow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#d6453c" flood-opacity="0.55"/>
+        </filter>
+        <clipPath id="clipmap"><rect x="0" y="0" width="1200" height="740"/></clipPath>
+      </defs>
+      <g id="grid"></g>
+      <g id="landg" clip-path="url(#clipmap)"></g>
+      <g id="isleg"></g>
+      <polygon id="zone" points=""/>
+      <g id="labels"></g>
+      <g id="trails" clip-path="url(#clipmap)"></g>
+      <g id="markers"></g>
+      <g id="units"></g>
+    </svg>
+  </div>
+
+  <aside id="panel">
+    <div id="bigdate">1941年12月<small id="phasename">第一段作戦 ─ 緒戦の快進撃</small></div>
+    <div>
+      <div class="boxtitle">戦 局 概 況</div>
+      <div id="phasetext"></div>
+    </div>
+    <div>
+      <div class="boxtitle">詳 報（戦闘・部隊・国内）</div>
+      <div id="detail"><div class="empty">地図上の戦闘マーカー（●）や部隊マーク（凸）を選択すると詳細を表示します。凸を選ぶと拡大表示され、編成戦力（兵員・艦艇・航空機・戦車など）が時間とともに増減する様子を追えます。紫のマーカーは国内・政治の動きです。</div></div>
+    </div>
+    <div>
+      <div class="boxtitle">こ の 時 点 ま で の 戦 歴</div>
+      <div id="eventlog"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--jp-red)"></i>日本側勝利</span>
+      <span><i style="background:var(--allied-blue)"></i>連合国側勝利</span>
+      <span><i style="background:var(--gold)"></i>引き分け</span>
+      <span><i style="background:var(--home-violet)"></i>国内・政治</span>
+      <span><i class="sq" style="background:rgba(180,40,32,.92);border:1px solid #ffb1a8"></i>凸 日本軍</span>
+      <span><i class="sq" style="background:rgba(38,92,140,.92);border:1px solid #a8d4f5"></i>凸 連合軍</span>
+      <span><i class="sq" style="background:#4e2a26;border:1px solid #7c4038"></i>日本占領地</span>
+      <span><i class="sq" style="background:#1f3a52;border:1px solid #3c6488"></i>連合国奪回地</span>
+    </div>
+    <div class="note">※ 赤い破線は日本の勢力圏のおおよその外縁。国土の塗り分けは国・地域単位の簡略表現（中国大陸の部分占領は勢力圏線のみで表現）。部隊の位置・兵力は司令部所在地等に基づく概数で、諸説を含みます。教育目的の資料です。</div>
+  </aside>
+</div>
+
+<div id="timeline">
+  <div id="tl-top">
+    <button id="playbtn" aria-label="再生 / 一時停止">▶</button>
+    <div id="trackwrap">
+      <div id="ticks"></div>
+      <input type="range" id="slider" min="0" max="45.7" step="0.04" value="0" aria-label="時間を選択">
+    </div>
+    <div id="tl-date">1941年12月8日</div>
+  </div>
+  <div id="tl-bottom">
+    <div id="yearlabels">
+      <span>1941.12 開戦</span><span>1942</span><span>1943</span><span>1944</span><span>1945.9 降伏</span>
+    </div>
+    <div id="layers">
+      <label><input type="checkbox" id="lyr-jp" checked>日本軍</label>
+      <label><input type="checkbox" id="lyr-us" checked>連合軍</label>
+      <label><input type="checkbox" id="lyr-ev" checked>戦闘</label>
+      <label><input type="checkbox" id="lyr-hm" checked>国内</label>
+    </div>
+  </div>
+</div>
+
+<div id="bvOverlay" role="dialog" aria-modal="true" aria-label="戦闘詳細">
+  <div id="bv">
+    <div id="bvhead">
+      <h2 id="bvtitle"></h2><span class="bvds" id="bvds"></span>
+      <button id="bvclose" aria-label="閉じる">×</button>
+    </div>
+    <div id="bvmain">
+      <div id="bvmapwrap"><svg id="bvmap" viewBox="0 0 900 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="戦闘詳細図"></svg></div>
+      <div id="bvside">
+        <div><div class="boxtitle">戦 況</div><div id="bvphname"></div><div id="bvphtx"></div></div>
+        <div><div class="boxtitle">部 隊 詳 細</div><div id="bvunit"><div class="empty">艦船・部隊マークをクリックすると、投入された艦名・編成・指揮官を表示します。マークの形は艦種（戦艦・空母・巡洋艦・潜水艦・輸送船・基地）を表します。</div></div></div>
+        <div><div class="boxtitle">損 失</div><div id="bvloss"></div></div>
+      </div>
+    </div>
+    <div id="bvtl">
+      <button id="bvplay" aria-label="再生 / 一時停止">▶</button>
+      <input type="range" id="bvslider" min="0" max="72" step="0.05" value="0" aria-label="戦闘内の時間">
+      <div id="bvtime"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- projection ---------- */
+const LON0=88, LON1=208, LAT0=-18, LAT1=56, W=1200, H=740;
+const px=lon=>(lon-LON0)/(LON1-LON0)*W;
+const py=lat=>(LAT1-lat)/(LAT1-LAT0)*H;
+const P=(lon,lat)=>px(lon)+','+py(lat);
+const poly=a=>a.map(p=>P(p[0],p[1])).join(' ');
+
+/* ---------- time: t = months since 1941-12-01 ---------- */
+const T=(y,m,d=1)=>(y-1941)*12+(m-12)+(d-1)/31;
+const monthName=t=>{
+  const total=Math.floor(t), y=1941+Math.floor((11+total)/12), m=((11+total)%12)+1;
+  const day=Math.max(1,Math.min(28,Math.round((t-total)*31)+1));
+  return {y,m,day};
+};
+
+/* ---------- fallback simplified landmasses (region-tagged) ---------- */
+const lands=[
+ [[88,56],[122,56],[128,53],[131.5,48.5],[130.5,42.5],[127.5,40.5],[123,40],[121.5,37],[122,33.5],[121,30],[118,26],[115,22.5],[110,20.5],[108.5,17],[108.8,12.5],[105,8.8],[103.7,5.5],[103.6,1.4],[101.4,3],[99.5,8],[98.3,13],[97.5,16.5],[94,19.5],[91,22.5],[88,25.5]],
+ [[125.6,38],[126.3,34.6],[129.2,35.1],[129.6,38],[128,40],[126.2,39.6]],
+ [[129.6,31.2],[131.2,30.9],[132,32.3],[134.2,33.5],[136,34.2],[139.8,34.8],[141,36.4],[141.6,38.6],[141.2,40.6],[140.6,41.5],[139.9,41.4],[139.4,40],[138.4,38.4],[136.8,37.2],[136.4,36.1],[134.8,35.6],[132.8,35.3],[131,34.3],[129.8,32.6]],
+ [[140.4,42],[143,42.4],[145.6,43.2],[145.1,44.4],[142.6,44.6],[140.9,43.4]],
+ [[141.9,46],[143.6,48.8],[144.1,52],[142.6,52.2],[141.6,48.4]],
+ [[155,51],[158.5,53],[160.5,56],[156,56],[154,52.5]],
+ [[120.1,22.2],[121.5,25.2],[122.1,24.9],[121.1,21.9]],
+ [[108.7,18.3],[110.7,19.8],[111.1,19],[109.6,17.8]],
+ [[120,18.6],[122,18.3],[122.5,16],[121.6,13.8],[120.5,14.1],[119.9,16.3]],
+ [[123.6,11.8],[125.3,11.4],[125.2,10],[123.8,10.4]],
+ [[122,8.3],[126,9.6],[126.6,7],[124.2,5.6],[121.9,6.7]],
+ [[95.3,5.6],[98.3,3.2],[102,-1],[105.2,-4.2],[106.1,-6],[103.8,-5.4],[100,-1.6],[96,2.4],[95,4.6]],
+ [[105.4,-6.1],[110,-6.5],[114.5,-7.4],[114.2,-8.6],[108,-7.8],[105.4,-7.1]],
+ [[109,1.2],[111.2,3.4],[115,5.6],[117.6,7],[119.2,1],[116.6,-3.2],[112.8,-3.6],[109.8,-1.4]],
+ [[119.8,0.8],[121.5,1.2],[123.5,0.5],[122,-2],[122.8,-5.4],[120.8,-5.6],[120.4,-2.2]],
+ [[131,-1.4],[136,-2],[141,-3],[146,-5],[150,-7.5],[150.9,-10.2],[148,-10.2],[143,-8.2],[138,-7.6],[134,-5.8],[130.9,-4]],
+ [[148.5,-5.8],[152.2,-4.2],[152.6,-5],[149.5,-6.6]],
+ [[113,-18],[121,-17],[126,-14],[130.5,-11.8],[133,-12],[136.3,-12.2],[136.8,-15],[140.8,-17.4],[141.6,-12.6],[142.5,-10.9],[143.4,-14.5],[145.8,-18]],
+];
+const landRegions=['CHN','KOR','JPN','JPN','JPN','RUS','TWN','HAI','PHL','PHL','PHL','IDN','IDN','IDN','IDN','PNG','PNG','AUS'];
+const isles=[
+ [182.6,28.2,3,'ミッドウェー'],[166.6,19.3,3,'ウェーク'],[144.8,13.5,3,'グアム'],
+ [145.7,15.2,3,'サイパン'],[141.3,24.8,3,'硫黄島'],[127.7,26.3,3.5,'沖縄'],
+ [151.8,7.4,3.5,'トラック'],[134.5,7.3,3,'パラオ'],[173,1.4,3,'タラワ'],
+ [160,-9.5,4,'ガダルカナル'],[155.2,-6.2,3.5,''],[171.2,7.1,2.5,''],[168.7,9.4,2.5,'マーシャル'],
+ [173,52.9,3,'アッツ'],[177,51.9,2.5,''],[183,52,2.5,''],[188,53,2.5,''],
+ [202,21.3,3.5,'真珠湾'],[203.7,20.7,2.5,''],[156.9,-8.1,2.5,''],
+ [146,44,2.5,''],[148.5,45.2,2.5,''],[151,46.5,2.5,''],[153.5,48,2.5,''],[155.5,49.5,2.5,'千島'],
+];
+const landNames=[[110,38,'中　国'],[127.4,36.7,'朝鮮'],[137.8,37.2,'日本'],[96,21,'ビルマ'],[114,0.5,'ボルネオ'],[140,-5.6,'ニューギニア'],[131,-15.5,'オーストラリア'],[119,16.5,'比島'],[124,46,'満洲']];
+const seaNames=[[170,33,'太　平　洋'],[127.5,17.5,'南シナ海'],[143,5,'内南洋（委任統治領）'],[158,-14,'珊瑚海']];
+
+/* ---------- territorial occupation table (region → [[t, side],...]) ---------- */
+const OCC={
+ JPN:[[0,'jp'],[T(1945,9,2),'us']],
+ KOR:[[0,'jp'],[T(1945,8,15),'us']],
+ PRK:[[0,'jp'],[T(1945,8,15),'us']],
+ TWN:[[0,'jp'],[T(1945,8,15),'us']],
+ HAI:[[0,'jp'],[T(1945,8,15),'us']],
+ HKG:[[T(1941,12,25),'jp'],[T(1945,8,30),'us']],
+ PHL:[[T(1942,1,2),'jp'],[T(1945,3,3),'us']],
+ IDN:[[T(1942,3,9),'jp'],[T(1945,8,15),'us']],
+ TLS:[[T(1942,2,20),'jp'],[T(1945,8,15),'us']],
+ MYS:[[T(1942,2,15),'jp'],[T(1945,8,15),'us']],
+ SGP:[[T(1942,2,15),'jp'],[T(1945,8,15),'us']],
+ BRN:[[T(1942,1,6),'jp'],[T(1945,6,10),'us']],
+ MMR:[[T(1942,5,1),'jp'],[T(1945,5,2),'us']],
+ THA:[[T(1941,12,21),'jp'],[T(1945,8,15),'us']],
+ VNM:[[0,'jp'],[T(1945,8,15),'us']],
+ KHM:[[0,'jp'],[T(1945,8,15),'us']],
+ LAO:[[0,'jp'],[T(1945,8,15),'us']],
+ PNG:[[T(1942,3,8),'jp'],[T(1944,8,1),'us']],
+ SLB:[[T(1942,5,3),'jp'],[T(1943,12,1),'us']],
+ USA:[[0,'home']],AUS:[[0,'home']],NZL:[[0,'home']],IND:[[0,'home']],CAN:[[0,'home']],
+ RUS:[[T(1945,8,9),'home']],MNG:[[T(1945,8,9),'home']],
+};
+function occAt(region,t){
+  const tbl=OCC[region]; if(!tbl)return null;
+  let side=null; tbl.forEach(e=>{if(t>=e[0])side=e[1]});
+  return side;
+}
+
+/* ---------- control zone keyframes (18 vertices) ---------- */
+const ZK=[
+ {t:0, v:[[143,52],[157,50.5],[150,30],[147,18],[174,9],[165,5],[152,2],[135,0],[121,8],[108,10],[104,15],[108,21],[110,25],[118,32],[122,38],[124,42],[132,46],[138,50]]},
+ {t:T(1942,8), v:[[143,52],[172,53],[170,30],[167,19],[176,6],[177,-2],[162,-10],[147,-11],[130,-9],[114,-9],[104,-6],[96,2],[92,12],[95,22],[98,26],[110,30],[122,40],[135,48]]},
+ {t:T(1943,12), v:[[143,52],[157,50.5],[165,35],[167,19],[174,8],[168,0],[155,-6],[146,-7],[130,-9],[114,-9],[104,-6],[96,2],[92,12],[95,22],[98,26],[110,30],[122,40],[135,48]]},
+ {t:T(1944,12), v:[[143,52],[157,50.5],[150,33],[142,24],[140,16],[134,5],[127,-3],[118,-8],[114,-9],[104,-6],[96,2],[92,12],[95,22],[98,26],[110,30],[118,34],[122,40],[135,48]]},
+ {t:T(1945,8,15), v:[[143,52],[157,50.5],[148,38],[142,30],[132,27.5],[122,24],[114,18],[108,12],[104,10],[102,14],[104,20],[108,22],[112,26],[118,32],[122,38],[126,42],[130,44],[137,48]]},
+];
+function zoneAt(t){
+  if(t<=ZK[0].t) return ZK[0].v;
+  if(t>=ZK[ZK.length-1].t) return ZK[ZK.length-1].v;
+  let i=0; while(ZK[i+1].t<t)i++;
+  const a=ZK[i],b=ZK[i+1],f=(t-a.t)/(b.t-a.t);
+  return a.v.map((p,k)=>[p[0]+(b.v[k][0]-p[0])*f, p[1]+(b.v[k][1]-p[1])*f]);
+}
+
+/* ---------- events: battles (r: jp/allied/draw/end) + domestic (r: home) ---------- */
+const EV=[
+ {n:'真珠湾攻撃',y:1941,m:12,d:8,lon:202,lat:21.3,r:'jp',ds:'12月8日（日本時間）',
+  tx:'南雲機動部隊の空母6隻・艦載機約350機がハワイ・オアフ島の米太平洋艦隊を奇襲。戦艦アリゾナなど4隻が沈没、米軍死者約2,400名。同日マレー上陸・比島空襲も行われ、日米英開戦。ただし米空母は出港中で無傷だった。'},
+ {n:'開戦の詔書・戦時体制',y:1941,m:12,d:8,lon:137.2,lat:38.8,r:'home',ds:'12月8日',
+  tx:'米英への宣戦の詔書が渙発され、国民はラジオの臨時ニュースと軍艦マーチで開戦を知った。すでに国家総動員法（1938年）、大政翼賛会（1940年）、米の配給制（1941年4月）など総力戦体制は整えられており、国民生活は丸ごと戦争に組み込まれていく。'},
+ {n:'マレー沖海戦',y:1941,m:12,d:10,lon:103.5,lat:5,r:'jp',ds:'12月10日',
+  tx:'日本海軍の陸上攻撃機が、英東洋艦隊の戦艦プリンス・オブ・ウェールズと巡洋戦艦レパルスを撃沈。航行中の戦艦が航空機のみで撃沈された史上初の事例となり、大艦巨砲時代の終わりを象徴した。'},
+ {n:'ウェーク島攻略',y:1941,m:12,d:23,lon:166.6,lat:19.3,r:'jp',ds:'12月8日〜23日',
+  tx:'米守備隊の頑強な抵抗で第一次攻略は駆逐艦2隻を失い失敗。真珠湾帰投中の空母2隻の支援を受けた第二次攻撃でようやく占領した。緒戦における数少ない番狂わせだった。'},
+ {n:'香港攻略',y:1941,m:12,d:25,lon:114.2,lat:22.3,r:'jp',ds:'12月8日〜25日',
+  tx:'第23軍が英領香港を攻撃。18日間の戦闘の末、クリスマスに英軍が降伏した。'},
+ {n:'マニラ占領・比島攻略',y:1942,m:1,d:2,lon:120.9,lat:14.6,r:'jp',ds:'1942年1月2日（バターン陥落は4月）',
+  tx:'本間中将の第14軍がルソン島に上陸しマニラを無血占領。米比軍はバターン半島・コレヒドール島で抵抗を続けたが、1942年5月までに降伏。マッカーサーは「I shall return」の言葉を残し豪州へ脱出した。'},
+ {n:'ラバウル占領',y:1942,m:1,d:23,lon:152.2,lat:-4.3,r:'jp',ds:'1942年1月23日',
+  tx:'ニューブリテン島の要衝ラバウルを占領。以後、南太平洋最大の航空・艦隊拠点として大要塞化され、ソロモン・ニューギニア戦の策源地となった。'},
+ {n:'衣料切符制・配給強化',y:1942,m:2,d:1,lon:134.5,lat:36.2,r:'home',ds:'1942年2月',
+  tx:'衣料品が点数切符制になり、砂糖・マッチ・味噌・醤油も次々と切符・配給制へ。金属供出で寺の鐘や家庭の鍋釜まで回収され、隣組を通じた相互監視と統制が生活の隅々に及んだ。「欲しがりません勝つまでは」の標語はこの年の国民学校生の作とされる。'},
+ {n:'シンガポール陥落',y:1942,m:2,d:15,lon:103.8,lat:1.35,r:'jp',ds:'2月8日〜15日',
+  tx:'山下中将の第25軍がマレー半島を約2か月で縦断し、「難攻不落」とされた英の拠点シンガポールを攻略。英軍約8万が降伏し、チャーチルが「英国史上最悪の惨事」と呼んだ大敗となった。'},
+ {n:'蘭印（ジャワ）攻略',y:1942,m:3,d:9,lon:110,lat:-7,r:'jp',ds:'2月〜3月9日',
+  tx:'スラバヤ沖海戦で連合国艦隊を撃破し、石油資源地帯の蘭印(現インドネシア)を制圧。開戦からわずか3か月で、日本は南方資源地帯のほぼ全域を手中に収め、勢力圏は最大に向かった。'},
+ {n:'ドーリットル空襲',y:1942,m:4,d:18,lon:140.5,lat:34.6,r:'allied',ds:'4月18日',
+  tx:'空母ホーネットから発進したB-25爆撃機16機が東京・名古屋・神戸などを初空襲。被害は軽微だったが「本土は安全」という前提を崩し、ミッドウェー作戦決行を後押しする心理的衝撃を与えた。'},
+ {n:'翼賛選挙',y:1942,m:4,d:30,lon:139.9,lat:38.2,r:'home',ds:'1942年4月30日',
+  tx:'緒戦の勝利に沸く中で行われた総選挙。政府の推薦候補が8割超を占めて当選し、議会は翼賛体制に組み込まれた。非推薦で当選した議員への弾圧も強まった。'},
+ {n:'珊瑚海海戦',y:1942,m:5,d:8,lon:155,lat:-14.5,r:'draw',ds:'5月7日〜8日',
+  tx:'史上初の空母同士の海戦。日本は軽空母祥鳳を失い翔鶴が大破、米は空母レキシントンを喪失。戦術的には痛み分けだったが、ポートモレスビー海路攻略は中止され、日本の南進が初めて止められた。'},
+ {n:'ミッドウェー海戦',y:1942,m:6,d:5,lon:182.6,lat:28.2,r:'allied',ds:'6月5日〜7日',
+  tx:'暗号解読で待ち伏せた米軍に対し、日本は主力空母4隻（赤城・加賀・蒼龍・飛龍）と熟練搭乗員多数を一挙に喪失（米は空母ヨークタウン1隻）。開戦半年で攻守が逆転した、太平洋戦争最大の転換点。'},
+ {n:'大本営発表（敗北の隠蔽）',y:1942,m:6,d:10,lon:141.8,lat:38.5,r:'home',ds:'1942年6月10日',
+  tx:'ミッドウェーでの空母4隻喪失を「空母1隻喪失・1隻大破」と発表し、軍艦マーチとともに勝利のように報じた。生還将兵は隔離され、敗北は国民にも陸軍にも隠された。以後「大本営発表」と実態の乖離は拡大の一途を辿る。'},
+ {n:'ガダルカナル島の戦い',y:1942,m:8,d:7,y2:1943,m2:2,d2:7,lon:160,lat:-9.5,r:'allied',ds:'1942年8月7日〜1943年2月7日',
+  tx:'米軍が飛行場建設中の同島に上陸し、半年に及ぶ陸海空の消耗戦に。日本は逐次投入と補給途絶で「餓島」と化し、陸兵約2万を失い撤退。多数の艦艇・航空機も失われ、以後日本は守勢に転じた。'},
+ {n:'第一次ソロモン海戦',y:1942,m:8,d:8,lon:158.2,lat:-8.6,r:'jp',ds:'8月8日深夜',
+  tx:'三川艦隊が夜戦で連合軍重巡4隻を撃沈する完勝。しかし肝心の輸送船団を攻撃せずに帰投し、ガ島の米軍上陸を阻止する好機を逸した。日本海軍の夜戦能力が最大限に発揮された戦いでもあった。'},
+ {n:'南太平洋海戦',y:1942,m:10,d:26,lon:164.5,lat:-11.5,r:'jp',ds:'10月26日',
+  tx:'日本機動部隊が空母ホーネットを撃沈し、米の稼働空母は太平洋で一時ゼロに。しかし日本側も搭乗員約150名を失い、消耗した航空隊の再建はもはや追いつかなくなっていた。'},
+ {n:'第三次ソロモン海戦',y:1942,m:11,d:13,lon:159.8,lat:-8.2,r:'allied',ds:'11月12日〜15日',
+  tx:'ガ島飛行場砲撃と増援輸送を巡る連夜の死闘。日本は戦艦比叡・霧島を失い、輸送船団もほぼ全滅。ガダルカナルへの大規模増援は不可能となり、撤退への分岐点となった。'},
+ {n:'ビスマルク海海戦',y:1943,m:3,d:3,lon:148.5,lat:-5,r:'allied',ds:'1943年3月2日〜3日',
+  tx:'ニューギニアへの増援船団が米豪航空部隊の反跳爆撃で壊滅。輸送船8隻・駆逐艦4隻を失い、将兵約3,000が海没した。制空権なき海上輸送の不可能性を決定づけた。'},
+ {n:'山本長官機撃墜（海軍甲事件）',y:1943,m:4,d:18,lon:155.7,lat:-6.8,r:'allied',ds:'1943年4月18日',
+  tx:'前線視察に向かう山本五十六連合艦隊司令長官の搭乗機が、暗号解読により待ち伏せた米P-38戦闘機にブーゲンビル島上空で撃墜され、長官は戦死。開戦を指揮した象徴の喪失は国民にも大きな衝撃を与えた。'},
+ {n:'アッツ島玉砕',y:1943,m:5,d:29,lon:173,lat:52.9,r:'allied',ds:'5月12日〜29日',
+  tx:'アリューシャン列島のアッツ島守備隊約2,600名が、増援を断たれたまま米軍と戦い、最後は突撃してほぼ全滅。大本営が初めて「玉砕」という言葉で発表した戦いとなった。'},
+ {n:'キスカ島撤退作戦',y:1943,m:7,d:29,lon:177.5,lat:52,r:'draw',ds:'1943年7月29日',
+  tx:'アッツ玉砕後、孤立したキスカ島の守備隊約5,200名を、霧に乗じた艦隊が一兵も損なわず収容した「奇跡の作戦」。撤退後の無人島に米軍は大規模上陸を行い、同士討ちの損害まで出した。'},
+ {n:'学徒出陣',y:1943,m:10,d:21,lon:138.6,lat:34.3,r:'home',ds:'1943年10月21日',
+  tx:'文科系学生の徴兵猶予が停止され、神宮外苑競技場で雨中の出陣学徒壮行会が行われた。「生等もとより生還を期せず」。動員された学徒は約13万人とされ、多くが特攻や激戦地へ送られた。'},
+ {n:'ブーゲンビル島の戦い',y:1943,m:11,d:1,lon:154.2,lat:-5.6,r:'allied',ds:'1943年11月1日〜',
+  tx:'米軍がタロキナに上陸し飛行場を確保。ラバウル攻略は行わず、航空攻撃で無力化して素通りする「飛び石作戦」の方針が確立した。取り残された日本軍守備隊は終戦まで自活戦闘を続けた。'},
+ {n:'タラワの戦い',y:1943,m:11,d:23,lon:173,lat:1.4,r:'allied',ds:'11月21日〜23日',
+  tx:'ギルバート諸島タラワ環礁で米軍の中部太平洋反攻が本格化。守備隊約4,600名はわずか76時間でほぼ全滅したが、米海兵隊にも約3,000名の死傷者を出し、米国内に衝撃を与えた。'},
+ {n:'クェゼリン陥落（マーシャル失陥）',y:1944,m:2,d:1,lon:167.7,lat:8.7,r:'allied',ds:'1944年1月31日〜2月6日',
+  tx:'タラワの戦訓を活かした米軍の圧倒的な事前砲爆撃により、マーシャル諸島の中心クェゼリンはわずか1週間で陥落。守備隊約8,000名が玉砕し、委任統治領「内南洋」の防衛線が崩れ始めた。'},
+ {n:'トラック島空襲',y:1944,m:2,d:17,lon:151.8,lat:7.4,r:'allied',ds:'1944年2月17日〜18日',
+  tx:'「日本の真珠湾」と呼ばれた連合艦隊の一大拠点トラック環礁を米機動部隊が大空襲。艦船約40隻・航空機約270機を喪失し、拠点機能は壊滅。連合艦隊は内南洋から後退を余儀なくされた。'},
+ {n:'労働力動員の極限化',y:1944,m:3,d:1,lon:133.2,lat:35.9,r:'home',ds:'1944年',
+  tx:'徴兵年齢は19歳に引き下げられ（後に17歳も召集可能に）、中学生・女学生は学業を停止して軍需工場へ。8月には女子挺身勤労令が公布され、未婚女性の勤労動員が法制化された。銃後の労働力は学徒と女性が支えた。'},
+ {n:'インパール作戦',y:1944,m:3,d:8,y2:1944,m2:7,d2:3,lon:94,lat:24.8,r:'allied',ds:'1944年3月〜7月',
+  tx:'ビルマから英領インドのインパール攻略を狙った作戦。補給を軽視した無謀な計画により、戦闘以上に飢えと病で兵が倒れ、退路は「白骨街道」と呼ばれた。日本側損害約3万（諸説あり）、史上最悪級の失敗作戦とされる。'},
+ {n:'大陸打通作戦（一号作戦）',y:1944,m:4,d:17,lon:113,lat:28,r:'jp',ds:'1944年4月〜12月',
+  tx:'中国大陸を南北に貫く日本陸軍史上最大の作戦。在華米空軍の飛行場群の覆滅と仏印への陸路連絡を狙い、兵力約50万を投入して京漢・湘桂線を打通した。作戦目的は達したが、既にB-29はマリアナへ移り、戦略的意義は失われていた。'},
+ {n:'ビアク島の戦い',y:1944,m:5,d:27,lon:136,lat:-1,r:'allied',ds:'1944年5月27日〜8月',
+  tx:'西部ニューギニアの要衝ビアク島に米軍が上陸。守備隊は洞窟陣地で持久戦を展開し、後のペリリュー・硫黄島につながる戦法の先駆けとなったが、増援は失敗し守備隊約1万が玉砕した。'},
+ {n:'八幡空襲（B-29本土初空襲）',y:1944,m:6,d:16,lon:130.8,lat:33.9,r:'allied',ds:'1944年6月16日',
+  tx:'中国・成都から発進したB-29が八幡製鉄所を爆撃。ドーリットル空襲以来2年ぶりの本土空襲であり、超重爆撃機による戦略爆撃時代の幕開けとなった。'},
+ {n:'マリアナ沖海戦',y:1944,m:6,d:19,lon:137.5,lat:14,r:'allied',ds:'6月19日〜20日',
+  tx:'空母9隻を擁する日本機動部隊が米艦隊に決戦を挑むも、練度と兵器の差は歴然。日本機は次々と撃墜され米側に「マリアナの七面鳥撃ち」と呼ばれた。空母3隻と艦載機の大半を失い、機動部隊は事実上壊滅。'},
+ {n:'サイパン陥落',y:1944,m:7,d:9,lon:145.7,lat:15.2,r:'allied',ds:'6月15日〜7月9日',
+  tx:'「絶対国防圏」の要サイパン島が陥落。守備隊約3万が玉砕し、多くの民間人も犠牲となった。本土がB-29の爆撃圏内に入り、敗戦は決定的に。責任を問われ東條内閣は総辞職した。'},
+ {n:'東條内閣総辞職',y:1944,m:7,d:22,lon:141,lat:37.5,r:'home',ds:'1944年7月22日',
+  tx:'サイパン陥落の責任を問う重臣らの倒閣工作により、開戦以来の東條英機内閣が総辞職。後継の小磯国昭内閣は「一億総武装」を唱えたが、戦局を打開する術はなかった。'},
+ {n:'学童疎開はじまる',y:1944,m:8,d:4,lon:136.2,lat:37.6,r:'home',ds:'1944年8月〜',
+  tx:'本土空襲に備え、都市部の国民学校児童の集団疎開が始まった。親元を離れた約45万人の子どもたちは、寺や旅館で空腹と寂しさに耐える日々を送った。'},
+ {n:'対馬丸撃沈',y:1944,m:8,d:22,lon:129.3,lat:29.2,r:'home',ds:'1944年8月22日',
+  tx:'沖縄から九州へ向かう学童疎開船「対馬丸」が米潜水艦に撃沈され、学童約780人を含む約1,480人が犠牲となった。生存者には箝口令が敷かれ、悲劇は長く伏せられた。'},
+ {n:'ペリリューの戦い',y:1944,m:9,d:15,lon:134.5,lat:7.1,r:'allied',ds:'1944年9月15日〜11月27日',
+  tx:'「2、3日で終わる」と予告された戦いは、洞窟陣地に拠る守備隊約1万の持久戦術により73日間に及んだ。米第1海兵師団は壊滅的損害を受けて戦線を離脱。守備隊はほぼ全滅した。'},
+ {n:'台湾沖航空戦',y:1944,m:10,d:12,lon:122.8,lat:23.2,r:'draw',ds:'1944年10月12日〜16日',
+  tx:'米機動部隊への基地航空隊の総攻撃。「空母11隻撃沈」の大戦果が発表され国民は提灯行列で沸いたが、実際の戦果はほぼ皆無だった。この誤報を信じた陸軍はレイテ決戦へ方針を転換し、破滅を深めることになる。'},
+ {n:'レイテ沖海戦',y:1944,m:10,d:23,lon:126,lat:11,r:'allied',ds:'10月23日〜25日',
+  tx:'比島奪回に来攻した米軍に対し、連合艦隊が残存戦力を結集した史上最大の海戦。戦艦武蔵など艦艇約30隻を失い、連合艦隊は組織的戦力として消滅。この戦いで初めて神風特別攻撃隊が組織的に出撃した。'},
+ {n:'東京初空襲（マリアナ発B-29）',y:1944,m:11,d:24,lon:140.3,lat:36.2,r:'allied',ds:'1944年11月24日',
+  tx:'サイパン発進のB-29約110機が中島飛行機武蔵製作所を狙い東京を初空襲。以後、本土空襲は日常と化し、防空壕掘りと建物疎開が国民の暮らしを覆った。'},
+ {n:'硫黄島の戦い',y:1945,m:2,d:19,y2:1945,m2:3,d2:26,lon:141.3,lat:24.8,r:'allied',ds:'1945年2月19日〜3月26日',
+  tx:'栗林中将率いる守備隊約2万が地下陣地に拠って徹底抗戦し、36日間で米軍に約2万9千の死傷者（戦死約6,800）を与えた。太平洋の戦いで米側の損害が日本側を上回った数少ない戦い。守備隊はほぼ全滅した。'},
+ {n:'東京大空襲',y:1945,m:3,d:10,lon:139.8,lat:35.7,r:'allied',ds:'3月10日未明',
+  tx:'B-29約300機による焼夷弾の無差別爆撃で東京の下町一帯が焼き尽くされ、一夜で死者約10万人、罹災者約100万人。以後、全国の主要都市が同様の空襲にさらされていく。'},
+ {n:'沖縄戦',y:1945,m:4,d:1,y2:1945,m2:6,d2:23,lon:127.7,lat:26.3,r:'allied',ds:'4月1日〜6月23日',
+  tx:'米軍約54万が来攻した、住民を巻き込む唯一の大規模地上戦。日本側死者は県民約9万4千を含む約18万8千。6月23日に組織的戦闘が終結し、本土決戦は目前とされた。'},
+ {n:'坊ノ岬沖海戦（大和特攻）',y:1945,m:4,d:7,lon:128.8,lat:30.7,r:'allied',ds:'1945年4月7日',
+  tx:'戦艦大和が片道燃料に近い状態で沖縄へ海上特攻に出撃。米艦載機約380機の波状攻撃を受け、乗員約3,000名とともに沈没した。日本海軍の象徴の最期であり、水上艦隊の時代の終焉だった。'},
+ {n:'鈴木貫太郎内閣成立',y:1945,m:4,d:7,lon:141.2,lat:36.8,r:'home',ds:'1945年4月7日',
+  tx:'小磯内閣が退陣し、侍従長を務めた海軍の長老・鈴木貫太郎（77歳）が組閣。「戦争完遂」を唱えつつ、水面下では和平への道を探る終戦内閣となった。'},
+ {n:'国民義勇隊・本土決戦体制',y:1945,m:6,d:23,lon:134.8,lat:37.3,r:'home',ds:'1945年6月',
+  tx:'義勇兵役法が公布され、15〜60歳の男性と17〜40歳の女性が動員対象に。竹槍訓練が行われ、「一億玉砕」が叫ばれた。食糧事情は極度に悪化し、都市住民は買い出しと配給の遅配に苦しんだ。'},
+ {n:'呉軍港空襲',y:1945,m:7,d:24,lon:132.5,lat:33.6,r:'allied',ds:'1945年7月24日・28日',
+  tx:'米機動部隊が呉軍港を空襲し、燃料を失い浮き砲台と化していた戦艦榛名・伊勢・日向など残存艦艇を撃破。連合艦隊は名実ともに消滅した。'},
+ {n:'ポツダム宣言と「黙殺」',y:1945,m:7,d:27,lon:142.2,lat:38,r:'home',ds:'1945年7月26日〜28日',
+  tx:'米英中が日本に無条件降伏を求めるポツダム宣言を発表。政府は受諾の可否を決められず、鈴木首相の「黙殺する」との発言が「拒絶」と報じられ、原爆投下とソ連参戦を招く口実とされた。'},
+ {n:'広島への原爆投下',y:1945,m:8,d:6,lon:132.45,lat:34.4,r:'allied',ds:'8月6日 午前8時15分',
+  tx:'人類史上初の原子爆弾「リトルボーイ」が広島に投下され、市街は一瞬で壊滅。年末までに約14万人が死亡したと推計される。'},
+ {n:'ソ連対日参戦',y:1945,m:8,d:9,lon:125,lat:45,r:'allied',ds:'8月9日',
+  tx:'ソ連が日ソ中立条約を破棄して満洲・南樺太・千島に侵攻。関東軍は崩壊し、和平の仲介をソ連に期待していた日本の戦争継続の望みは完全に絶たれた。多くの民間人が犠牲となり、シベリア抑留にもつながった。'},
+ {n:'長崎への原爆投下',y:1945,m:8,d:9,lon:129.87,lat:32.75,r:'allied',ds:'8月9日 午前11時2分',
+  tx:'2発目の原子爆弾「ファットマン」が長崎に投下され、年末までに約7万人が死亡したと推計される。'},
+ {n:'聖断 ─ ポツダム宣言受諾',y:1945,m:8,d:14,lon:142,lat:35.2,r:'home',ds:'8月9日深夜〜14日',
+  tx:'御前会議は受諾派と本土決戦派で真っ二つに割れ、鈴木首相は異例の「聖断」を仰いだ。昭和天皇は「自分の身はどうなろうとも」と受諾を決断。14日、連合国への受諾通告が発せられた。直前には陸軍将校による宮城事件（クーデター未遂）も起きている。'},
+ {n:'玉音放送 ─ 終戦',y:1945,m:8,d:15,lon:139.7,lat:35.7,r:'end',ds:'8月15日 正午',
+  tx:'昭和天皇によるポツダム宣言受諾の詔書が放送され、国民に敗戦が告げられた。開戦から3年8か月、日本側の死者は軍人約230万・民間人約80万にのぼった。'},
+ {n:'降伏文書調印',y:1945,m:9,d:2,lon:139.8,lat:35.3,r:'end',ds:'9月2日 東京湾・戦艦ミズーリ艦上',
+  tx:'重光葵外相・梅津参謀総長が降伏文書に調印し、太平洋戦争は正式に終結。日本は連合国の占領下に置かれることとなった。'},
+];
+EV.forEach(e=>{e.t=T(e.y,e.m,e.d); e.t2=e.y2?T(e.y2,e.m2,e.d2):e.t+0.6;});
+
+/* ---------- force composition icons ---------- */
+const ICO={
+ hei:'M12 1.2a2.1 2.1 0 1 1 0 4.2A2.1 2.1 0 0 1 12 1.2ZM7.5 13.5c0-3.6 1.8-6 4.5-6s4.5 2.4 4.5 6Z',
+ bb:'M2 10h20l-2.5 3.2H5.5Z M9 5.5h6v4.2H9Z M4 7.8h4v2H4Z M16 7.8h4v2h-4Z M5.4 7.8 6.6 5h.9L6.3 7.8Z M17.4 7.8 18.6 5h.9l-1.2 2.8Z M11.2 2.8h1.6v2.7h-1.6Z',
+ cv:'M2 7.2h20v2.2H2Z M4.5 9.4h15l-2.2 3.4H7.5Z M15.8 3.8h3.4v3.4h-3.4Z M3.5 6.2 6 4.6h4L7.5 6.2Z',
+ sh:'M3 10h18l-2.2 3H6Z M9.8 6h4.4v4H9.8Z M5 8h3.2v2H5Z M11.4 3.4h1.2V6h-1.2Z',
+ ss:'M2.5 9.8c0-1.9 3.2-3 9.5-3s9.5 1.1 9.5 3-3.2 3-9.5 3-9.5-1.1-9.5-3Z M9.8 4.6h4.4v2.8H9.8Z M11.5 2.6h1.4v2h-1.4Z',
+ ac:'M11 1.6h2v4.2l8.4 3.1v2.1l-8.4-1.1v3.3l3 2.1v1.2l-4-1.1-4 1.1v-1.2l3-2.1V9.9L2.6 11V8.9L11 5.8Z',
+ tk:'M8 3.6h6.6l1.8 2.8H6.4Z M14.5 4.6h7.2v1.4h-7.2Z M4.2 7.6h15.6c2.1 0 2.4 4.4-.8 4.4H5c-3.2 0-2.9-4.4-.8-4.4Z M7 9.2a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z M12 9.2a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z M17 9.2a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z',
+};
+const KLBL={hei:'兵員',bb:'戦艦',cv:'空母',sh:'艦艇',ss:'潜水艦',ac:'航空機',tk:'戦車'};
+const fmt=n=>typeof n==='number'?n.toLocaleString('ja-JP'):n;
+
+/* ---------- military units ----------
+   kf:[t,lon,lat] / die: 壊滅 / st:[t,状況] / comp:[t,[[kind, 表示, 数値(増減判定用)],...]] */
+const UN=[
+/* ===== 日本軍 ===== */
+ {n:'連合艦隊',sn:'連合艦隊',side:'jp',br:'海',sz:1.5,cmd:'山本五十六 → 古賀峯一 → 豊田副武',
+  kf:[[0,132.4,33.4],[T(1942,8),151.8,7.4],[T(1944,2,10),151.8,7.4],[T(1944,3,10),104.6,0.2],[T(1944,10,22),125.8,12]],
+  die:T(1944,10,26),
+  st:[[0,'世界第3位の海軍 ─ 真珠湾とともに南方へ全力展開'],
+      [T(1943,4),'ソロモン消耗戦で艦艇・熟練搭乗員を大量喪失中'],
+      [T(1944,3),'トラック壊滅後、燃料源に近いリンガ泊地へ後退'],
+      [T(1944,10),'残存全力をレイテへ投入 ─ 連合艦隊最後の出撃']],
+  comp:[[0,[['bb','10隻',10],['cv','10隻',10],['sh','約230隻',230],['ss','64隻',64]]],
+        [T(1942,8),[['bb','11隻（大和竣工）',11],['cv','6隻',6],['sh','約210隻',210],['ss','約60隻',60]]],
+        [T(1944,6),[['bb','9隻',9],['cv','9隻',9],['sh','約150隻',150],['ss','約40隻',40]]],
+        [T(1944,10,20),[['bb','9隻',9],['cv','4隻',4],['sh','約70隻',70],['ss','約30隻',30]]]],
+  tx:'日本海軍の作戦中核。旗艦は瀬戸内・柱島泊地からトラック泊地へ進出して中部太平洋を統括したが、1944年2月のトラック空襲で拠点を喪失。レイテ沖海戦で組織的戦力として消滅した。'},
+ {n:'第一航空艦隊（南雲機動部隊）',sn:'南雲機動部隊',side:'jp',br:'海',sz:1.3,cmd:'南雲忠一',
+  kf:[[0,200,23.5],[T(1942,1,10),133.5,34],[T(1942,4,20),133.5,34],[T(1942,6,3),182.6,29.5]],
+  die:T(1942,6,7),
+  st:[[0,'世界初の空母集中運用部隊 ─ 太平洋・インド洋を席巻'],
+      [T(1942,6,3),'ミッドウェーで暗号解読により待ち伏せを受ける']],
+  comp:[[0,[['cv','6隻',6],['ac','約350機',350],['sh','護衛 約23隻',23]]],
+        [T(1942,6,3),[['cv','4隻（2隻は珊瑚海で損耗）',4],['ac','約250機',250],['sh','護衛 約20隻',20]]]],
+  tx:'真珠湾攻撃を実行した空母機動部隊。開戦から半年間無敵を誇ったが、ミッドウェーで主力空母4隻を一挙に失い壊滅した。'},
+ {n:'機動部隊（第三艦隊→第一機動艦隊）',sn:'小沢機動部隊',side:'jp',br:'海',sz:1.3,cmd:'南雲忠一 → 小沢治三郎',
+  kf:[[T(1942,7,14),133.5,34],[T(1942,10,26),161,-8.5],[T(1943,2),151.8,7.4],[T(1944,2,20),104.6,0.2],[T(1944,6,19),136.5,14],[T(1944,8),133.5,34],[T(1944,10,25),126.5,18.5]],
+  die:T(1944,10,26),
+  st:[[T(1942,7,14),'翔鶴・瑞鶴を中核に再建 ─ 南太平洋海戦でホーネット撃沈'],
+      [T(1944,6),'数は揃うも搭乗員の練度は開戦時に遠く及ばず'],
+      [T(1944,10),'艦載機を失い「おとり」としてエンガノ岬沖へ']],
+  comp:[[T(1942,7,14),[['cv','4隻',4],['ac','約200機',200],['sh','約30隻',30]]],
+        [T(1944,6,1),[['cv','9隻',9],['ac','約450機',450],['sh','約60隻',60]]],
+        [T(1944,10,20),[['cv','4隻',4],['ac','108機',108],['sh','約25隻',25]]]],
+  tx:'ミッドウェー後に再建された空母部隊。マリアナ沖海戦で艦載機の大半を失い、レイテ沖海戦では囮となり空母4隻を失って消滅した。'},
+ {n:'第25軍',sn:'第25軍',side:'jp',br:'陸',sz:1,cmd:'山下奉文',
+  kf:[[T(1941,12,8),102,7.5],[T(1942,2,15),103.8,1.6]],die:T(1942,7),
+  st:[[T(1941,12,8),'マレー半島を快速南下中 ─ 「銀輪部隊」の自転車進撃'],
+      [T(1942,2,8),'ジョホール水道を渡りシンガポール総攻撃']],
+  comp:[[T(1941,12,8),[['hei','約3万5千',35000],['tk','約180両',180],['ac','支援 約450機',450]]]],
+  tx:'マレー作戦を担当。約2か月でマレー半島を縦断し、兵力で勝る英軍8万を降伏させた。「マレーの虎」山下中将の名を世界に知らしめた。'},
+ {n:'第14軍',sn:'第14軍',side:'jp',br:'陸',sz:1,cmd:'本間雅晴',
+  kf:[[T(1941,12,22),120.5,16.5],[T(1942,1,10),120.8,14.8]],die:T(1942,8),
+  st:[[T(1941,12,22),'リンガエン湾上陸 ─ マニラへ南進'],
+      [T(1942,4),'バターン半島攻略に苦戦 ─ 攻略は5月までかかる']],
+  comp:[[T(1941,12,22),[['hei','約4万3千',43000],['tk','約100両',100]]]],
+  tx:'フィリピン攻略を担当。マニラは早期に占領したが、バターン半島の攻略に手間取り、全比島制圧は1942年5月までかかった。'},
+ {n:'第15軍',sn:'第15軍',side:'jp',br:'陸',sz:1,cmd:'飯田祥二郎 → 牟田口廉也',
+  kf:[[T(1942,1,20),99,16],[T(1942,3,8),96.2,17],[T(1944,3,15),94.3,24.3],[T(1944,8),96,21.5]],
+  die:T(1945,5,3),
+  st:[[T(1942,1,20),'ビルマ攻略 ─ ラングーンへ進撃'],
+      [T(1944,3),'補給計画なきインパール攻略を強行'],
+      [T(1944,8),'死傷・戦病者約5万 ─ 「白骨街道」を退却中']],
+  comp:[[T(1942,1,20),[['hei','約3万5千',35000]]],
+        [T(1944,3),[['hei','約8万5千',85000],['tk','支援 約60両',60]]],
+        [T(1944,8),[['hei','約3万（残存）',30000],['tk','喪失',0]]]],
+  tx:'ビルマ戦線を担当。1942年は快進撃でラングーンを攻略したが、1944年のインパール作戦で壊滅的損害を受け、1945年5月のラングーン陥落でビルマ防衛は崩壊した。'},
+ {n:'南方軍総司令部',sn:'南方軍',side:'jp',br:'陸',sz:1.5,cmd:'寺内寿一',
+  kf:[[0,106.7,10.8],[T(1942,7),103.8,1.4],[T(1944,5),121,14.6],[T(1944,11,17),106.7,10.8]],
+  st:[[0,'南方作戦全体を統括'],
+      [T(1943,1),'占領地統治と防衛へ移行'],
+      [T(1945,1),'比島喪失後も南方残存兵力を統括（本土との補給は途絶）']],
+  comp:[[0,[['hei','約40万',400000],['ac','約700機',700]]],
+        [T(1943,1),[['hei','約75万',750000],['ac','約900機',900]]],
+        [T(1945,1),[['hei','約70万（孤立）',700000],['ac','約200機',200]]]],
+  tx:'東南アジア・南太平洋方面の全陸軍部隊を統括する総軍。サイゴン、シンガポール、マニラと司令部を移した。終戦時も南方には多数の将兵が残されていた。'},
+ {n:'関東軍',sn:'関東軍',side:'jp',br:'陸',sz:1.5,cmd:'梅津美治郎 → 山田乙三',
+  kf:[[0,125.3,43.9]],die:T(1945,8,20),
+  st:[[0,'対ソ戦に備えた陸軍最精鋭'],
+      [T(1943,6),'南方戦線への兵力抽出が進み、精鋭は次々と転用'],
+      [T(1945,7),'「根こそぎ動員」で数は維持も、装備・練度は劣悪'],
+      [T(1945,8,9),'ソ連軍157万の侵攻を受け崩壊']],
+  comp:[[0,[['hei','約70万',700000],['tk','約700両',700],['ac','約600機',600]]],
+        [T(1943,6),[['hei','約60万',600000],['tk','約500両',500],['ac','約400機',400]]],
+        [T(1945,7),[['hei','約70万（装備劣弱）',700000],['tk','約200両',200],['ac','約200機',200]]]],
+  tx:'満洲に駐留した対ソ備えの大兵団。かつては陸軍最精鋭を誇ったが、太平洋の戦局悪化で兵力を引き抜かれ続け、1945年8月のソ連侵攻時には抗しきれず崩壊した。'},
+ {n:'支那派遣軍',sn:'支那派遣軍',side:'jp',br:'陸',sz:1.5,cmd:'畑俊六 → 岡村寧次',
+  kf:[[0,118.8,32.1]],
+  st:[[0,'1937年以来の日中戦争 ─ 泥沼の持久戦が続く'],
+      [T(1944,4),'大陸打通作戦（一号作戦）を発動 ─ 兵力約50万を投入'],
+      [T(1945,8),'戦力を温存したまま降伏を迎える']],
+  comp:[[0,[['hei','約62万',620000],['ac','約250機',250]]],
+        [T(1944,4),[['hei','約62万',620000],['tk','約800両',800],['ac','約230機',230]]],
+        [T(1945,8),[['hei','約105万',1050000],['ac','約100機',100]]]],
+  tx:'日中戦争を戦い続けた大兵団。太平洋戦争中も日本陸軍の過半はこの中国戦線に拘束され続け、二正面作戦の重荷となった。'},
+ {n:'第8方面軍（ラバウル）',sn:'第8方面軍',side:'jp',br:'陸',sz:1.2,cmd:'今村均',
+  kf:[[T(1942,5,18),152.2,-4.3]],
+  st:[[T(1942,5,18),'第17軍としてソロモン・東部ニューギニア作戦を指揮'],
+      [T(1942,11,9),'第8方面軍へ拡大 ─ ガ島奪回を企図'],
+      [T(1944,3),'連合軍に包囲・素通りされ孤立 ─ 自給自足で終戦まで持久']],
+  comp:[[T(1942,5,18),[['hei','約5万',50000]]],
+        [T(1942,11,9),[['hei','約9万',90000]]],
+        [T(1944,3),[['hei','約7万（孤立・自活）',70000]]]],
+  tx:'南東方面の要衝ラバウルの大拠点。ガダルカナル・ニューギニアの消耗戦を指揮した後、連合軍の「飛び石作戦」で無力化・孤立。約7万が自活態勢で終戦を迎えた。'},
+ {n:'基地航空隊（第11航空艦隊）',sn:'基地航空隊',side:'jp',br:'空',sz:1,cmd:'塚原二四三 → 草鹿任一',
+  kf:[[0,121,23.8],[T(1942,2),152.2,-4],[T(1943,12),151.8,7.4]],die:T(1944,2,20),
+  st:[[0,'台湾から比島を爆撃 ─ 開戦劈頭の航空撃滅戦'],
+      [T(1942,9),'ラバウルを拠点にガダルカナル航空消耗戦へ'],
+      [T(1943,12),'熟練搭乗員が枯渇 ─ トラックへ後退']],
+  comp:[[0,[['ac','約300機',300]]],
+        [T(1942,9),[['ac','約200機',200]]],
+        [T(1943,12),[['ac','約100機',100]]]],
+  tx:'海軍の陸上基地航空部隊。開戦劈頭の比島航空撃滅戦やマレー沖海戦で活躍したが、ソロモン上空の消耗戦で熟練搭乗員を使い果たし、1944年2月のトラック空襲で事実上壊滅した。'},
+ {n:'第31軍（中部太平洋）',sn:'第31軍',side:'jp',br:'陸',sz:1,cmd:'小畑英良',
+  kf:[[T(1944,2,25),145.7,15.2]],die:T(1944,8,11),
+  st:[[T(1944,2,25),'マリアナ・小笠原など絶対国防圏の島々に分散配備'],
+      [T(1944,6,15),'サイパン守備隊約3万が米軍7万の上陸を迎撃']],
+  comp:[[T(1944,2,25),[['hei','約5万9千',59000],['tk','約36両（サイパン）',36]]]],
+  tx:'絶対国防圏の中部太平洋諸島を守備するため新設された軍。制海・制空権なき島嶼防衛は各個撃破されるほかなく、サイパン・テニアン・グアムで相次いで玉砕した。'},
+ {n:'第14方面軍',sn:'第14方面軍',side:'jp',br:'陸',sz:1.3,cmd:'山下奉文',
+  kf:[[T(1944,10,6),121,14.6],[T(1945,2),121.1,16.6]],
+  st:[[T(1944,10,6),'比島決戦を準備 ─ しかしレイテへの戦力転用を強いられる'],
+      [T(1945,1),'ルソン島山岳地帯で持久戦へ移行'],
+      [T(1945,8),'飢えと病の山中持久 ─ 終戦まで抗戦継続']],
+  comp:[[T(1944,10,6),[['hei','約43万',430000],['tk','約220両',220],['ac','約400機',400]]],
+        [T(1945,2),[['hei','約28万（ルソン）',280000],['tk','約20両',20],['ac','ほぼ喪失',0]]]],
+  tx:'比島決戦のため山下大将が再登板。レイテ決戦の失敗後はルソン島山岳地帯での持久戦に徹し、終戦まで米軍を拘束し続けたが、将兵の犠牲は約40万に達した。'},
+ {n:'第32軍（沖縄）',sn:'第32軍',side:'jp',br:'陸',sz:1,cmd:'牛島満',
+  kf:[[T(1944,4,1),127.7,26.2]],die:T(1945,6,23),
+  st:[[T(1944,4,1),'沖縄防衛 ─ 首里中心に地下陣地網を構築'],
+      [T(1945,4,1),'米軍54万の上陸に対し内陸持久戦'],
+      [T(1945,6,18),'摩文仁へ後退 ─ 組織的戦闘の終焉へ']],
+  comp:[[T(1944,4,1),[['hei','約8万6千',86000],['tk','約27両',27]]],
+        [T(1945,3),[['hei','約10万6千（現地召集含む）',106000],['tk','約27両',27]]]],
+  tx:'沖縄防衛のため新設された軍。水際撃滅を避け内陸持久戦で米軍に出血を強いたが、6月23日に牛島司令官が自決し組織的戦闘は終結。県民約9万4千を含む膨大な犠牲を残した。'},
+ {n:'小笠原兵団（硫黄島）',sn:'小笠原兵団',side:'jp',br:'陸',sz:1,cmd:'栗林忠道',
+  kf:[[T(1944,6,8),141.3,24.8]],die:T(1945,3,26),
+  st:[[T(1944,6,8),'全長18kmの地下坑道陣地を構築中'],
+      [T(1945,2,19),'米軍11万の上陸に対し36日間の徹底抗戦']],
+  comp:[[T(1944,6,8),[['hei','約2万1千',21000],['tk','約23両',23]]]],
+  tx:'硫黄島守備隊。万歳突撃を禁じ地下陣地での持久戦に徹し、米軍に日本側を上回る約2万9千の死傷者を強いた。栗林中将は最後の総攻撃で戦死したとされる。'},
+ {n:'第1総軍・第2総軍（本土決戦）',sn:'本土決戦軍',side:'jp',br:'陸',sz:1.5,cmd:'杉山元（東日本）・畑俊六（西日本）',
+  kf:[[T(1945,4,8),137.5,36.5]],
+  st:[[T(1945,4,8),'「決号作戦」発動準備 ─ 九州南部と関東への上陸を想定'],
+      [T(1945,7),'根こそぎ動員で数は揃うも、小銃すら全員に行き渡らず']],
+  comp:[[T(1945,4,8),[['hei','約150万（動員中）',1500000],['ac','特攻用温存 約8千機',8000]]],
+        [T(1945,7),[['hei','約240万',2400000],['ac','特攻用温存 約1万機',10000]]]],
+  tx:'本土決戦「決号作戦」のため1945年4月に新設。九州南部（オリンピック作戦正面）と関東（コロネット作戦正面）への米軍上陸を想定し、国民義勇隊を含む総力戦を準備していた。'},
+/* ===== 連合軍 ===== */
+ {n:'米太平洋艦隊司令部',sn:'ニミッツ司令部',side:'us',br:'海',sz:1.5,cmd:'チェスター・ニミッツ',
+  kf:[[0,202,21.3],[T(1945,1,27),144.8,13.5]],
+  st:[[0,'真珠湾の打撃から再建中 ─ 暗号解読で反撃の機を窺う'],
+      [T(1943,6),'エセックス級空母が続々就役 ─ 反攻態勢確立'],
+      [T(1945,1),'グアムに前進司令部 ─ 太平洋全域を指揮']],
+  comp:[[0,[['cv','3隻',3],['sh','約100隻',100]]],
+        [T(1943,6),[['cv','11隻',11],['sh','約300隻',300]]],
+        [T(1945,1),[['cv','17隻＋',17],['sh','約1,000隻',1000]]]],
+  tx:'太平洋方面の米海軍を統括。暗号解読情報を駆使してミッドウェーで勝機を掴み、以後は圧倒的工業力を背景に中部太平洋の「飛び石」反攻を指揮した。'},
+ {n:'高速空母機動部隊（TF58/38）',sn:'米機動部隊',side:'us',br:'海',sz:1.3,cmd:'スプルーアンス／ハルゼー（ミッチャー）',
+  kf:[[T(1942,4,10),200,23],[T(1942,6,4),183,29],[T(1942,8,7),161,-10.5],[T(1943,6),200,22],[T(1943,11,20),173.5,2],[T(1944,2,17),152.5,8],[T(1944,6,19),138,14.5],[T(1944,10,24),127.5,13],[T(1945,2,16),141.8,27],[T(1945,4,1),129,25.5],[T(1945,7,10),143,36]],
+  st:[[T(1942,4,10),'虎の子の空母で奇襲と迎撃 ─ ドーリットル空襲を実施'],
+      [T(1943,11),'新鋭エセックス級を揃え中部太平洋反攻を開始'],
+      [T(1944,6),'史上最強の海上戦力に成長'],
+      [T(1945,7),'日本本土近海に常駐 ─ 全土を自由に攻撃']],
+  comp:[[T(1942,4,10),[['cv','4隻',4],['ac','約280機',280],['sh','約25隻',25]]],
+        [T(1943,11),[['cv','11隻',11],['ac','約700機',700],['sh','約60隻',60]]],
+        [T(1944,6),[['cv','15隻',15],['ac','約900機',900],['sh','約90隻',90]]],
+        [T(1945,7),[['cv','17隻＋英空母4',21],['ac','約1,200機',1200],['sh','約110隻',110]]]],
+  tx:'米反攻の主役となった高速空母部隊。指揮官交代で第5艦隊（TF58）と第3艦隊（TF38）の名を使い分けた。1944年以降は日本側のあらゆる拠点を圧倒し、戦争末期には日本本土近海に常駐した。'},
+ {n:'南西太平洋方面軍',sn:'マッカーサー軍',side:'us',br:'陸',sz:1.5,cmd:'ダグラス・マッカーサー',
+  kf:[[T(1942,4,18),146,-17.3],[T(1943,11),147,-9.2],[T(1944,4,22),140.7,-2.5],[T(1944,10,20),125,11],[T(1945,3),121,14.6]],
+  st:[[T(1942,4,18),'比島から脱出し豪州で再起 ─ 米豪軍を統合指揮'],
+      [T(1943,9),'ニューギニア北岸を「飛び石」で西進中'],
+      [T(1944,10),'「I have returned」─ レイテに帰還'],
+      [T(1945,3),'ルソン奪回 ─ マニラに司令部を進める']],
+  comp:[[T(1942,4,18),[['hei','約25万（米豪）',250000],['ac','約500機',500]]],
+        [T(1944,10),[['hei','約20万（レイテ侵攻軍）',200000],['sh','輸送・護衛 約700隻',700],['ac','約1,000機',1000]]],
+        [T(1945,3),[['hei','約75万',750000],['ac','約1,200機',1200]]]],
+  tx:'比島から脱出したマッカーサーが豪州で再建した連合軍。ニューギニアの日本軍拠点を飛び石で無力化しながら西進し、1944年10月、公約どおり比島に帰還した。'},
+ {n:'米水陸両用部隊（海兵隊・上陸軍）',sn:'米上陸部隊',side:'us',br:'陸',sz:1.3,cmd:'H.M.スミス／バックナーほか',
+  kf:[[T(1942,8,7),160,-8.5],[T(1943,11,21),173,2.4],[T(1944,2,1),168.7,9.4],[T(1944,6,15),145.7,16.2],[T(1944,9,15),134.5,7.3],[T(1945,2,19),141.3,25.8],[T(1945,4,1),127.7,27.3]],
+  st:[[T(1942,8,7),'第1海兵師団がガダルカナルに上陸'],
+      [T(1943,11),'タラワ強襲 ─ 水陸両用作戦の教訓を血で購う'],
+      [T(1944,6),'サイパン・グアム・テニアンへ連続上陸'],
+      [T(1945,2),'硫黄島強襲 ─ 摺鉢山に星条旗'],
+      [T(1945,4),'第10軍として沖縄上陸 ─ 最大規模の上陸作戦']],
+  comp:[[T(1942,8,7),[['hei','約1万9千',19000]]],
+        [T(1943,11),[['hei','約3万5千',35000],['tk','約60両',60]]],
+        [T(1944,6),[['hei','約7万1千',71000],['tk','約150両',150]]],
+        [T(1945,2),[['hei','約7万（3個海兵師団）',70000],['tk','約150両',150]]],
+        [T(1945,4),[['hei','約18万3千',183000],['tk','約300両',300]]]],
+  tx:'太平洋の島々を次々と強襲した上陸部隊。水陸両用作戦の技術を磨き上げ、ガダルカナルから沖縄まで、要塞化された島を力押しで攻略し続けた。その代償も常に大きかった。'},
+ {n:'米第7艦隊',sn:'第7艦隊',side:'us',br:'海',sz:1,cmd:'トーマス・キンケード',
+  kf:[[T(1943,3,15),146.8,-16.8],[T(1944,5),140.7,-3.5],[T(1944,10,20),125.8,10.3],[T(1945,1,9),120.2,16.2]],
+  st:[[T(1943,3,15),'「マッカーサーの海軍」─ 上陸支援と輸送を担当'],
+      [T(1944,10),'レイテ湾へ ─ スリガオ海峡で日本艦隊を迎撃']],
+  comp:[[T(1943,3,15),[['sh','約100隻',100]]],
+        [T(1944,10),[['sh','約740隻',740],['bb','旧式戦艦6隻',6],['cv','護衛空母18隻',18]]]],
+  tx:'南西太平洋方面の上陸作戦を支えた艦隊。レイテ沖海戦では旧式戦艦部隊がスリガオ海峡で西村艦隊を全滅させ、護衛空母群はサマール沖で栗田艦隊の猛攻を凌いだ。'},
+ {n:'第20航空軍（B-29）',sn:'B-29部隊',side:'us',br:'空',sz:1.2,cmd:'ハンセル → カーチス・ルメイ',
+  kf:[[T(1944,6,15),104,30.7],[T(1944,11,24),145.6,15]],
+  st:[[T(1944,6,15),'成都から九州を爆撃（マッターホルン作戦）'],
+      [T(1944,11),'マリアナへ移転 ─ 本土全域が爆撃圏内に'],
+      [T(1945,3),'夜間低空の焼夷弾爆撃へ転換 ─ 都市を焼き払う'],
+      [T(1945,7),'都市爆撃・機雷封鎖、そして原爆投下へ']],
+  comp:[[T(1944,6,15),[['ac','B-29 約100機',100]]],
+        [T(1945,3),[['ac','B-29 約350機',350]]],
+        [T(1945,7),[['ac','B-29 約500機＋',500]]]],
+  tx:'超重爆撃機B-29の戦略爆撃部隊。マリアナ占領で日本本土全域を射程に収め、1945年3月以降は焼夷弾による都市無差別爆撃で日本の戦争経済と国民生活を破壊した。広島・長崎への原爆投下もこの部隊が実行した。'},
+ {n:'米潜水艦部隊',sn:'米潜水艦隊',side:'us',br:'海',sz:1,cmd:'チャールズ・ロックウッド',
+  kf:[[T(1942,3),195,25],[T(1943,6),152,21],[T(1944,6),122,21],[T(1945,3),135,33.5]],
+  st:[[T(1942,3),'魚雷の欠陥に悩みつつ通商破壊を開始'],
+      [T(1944,1),'日本のシーレーンを絞め上げる'],
+      [T(1945,1),'日本商船の喪失は累計800万トン超 ─ 南方資源輸送は途絶']],
+  comp:[[T(1942,3),[['ss','約50隻',50]]],
+        [T(1944,1),[['ss','約100隻',100]]],
+        [T(1945,1),[['ss','約156隻',156]]]],
+  tx:'日本の輸送船団を狙い続けた「沈黙の艦隊」。日本側の対潜能力の低さもあり、商船の過半と多数の艦艇を撃沈。資源輸送を断ち切り、戦闘によらず日本の戦争継続能力を奪った。'},
+ {n:'英第14軍（ビルマ）',sn:'英第14軍',side:'us',br:'陸',sz:1.2,cmd:'ウィリアム・スリム',
+  kf:[[T(1944,3,8),93.6,25.3],[T(1945,3),96.1,22],[T(1945,5,2),96.2,16.8]],
+  st:[[T(1944,3,8),'インパール・コヒマで日本軍の攻勢を迎撃'],
+      [T(1945,1),'イラワジ河を渡りビルマ奪回へ'],
+      [T(1945,5),'ラングーン奪回 ─ ビルマの日本軍は崩壊']],
+  comp:[[T(1944,3,8),[['hei','約15万',150000],['tk','約300両',300],['ac','支援 約800機',800]]],
+        [T(1945,1),[['hei','約26万',260000],['tk','約400両',400],['ac','約1,000機',1000]]]],
+  tx:'インパールで日本第15軍の攻勢を粉砕した英連邦軍。空輸補給を駆使した近代戦で1945年にビルマを奪回し、「忘れられた軍隊」と呼ばれながら日本陸軍に最大級の損害を与えた。'},
+ {n:'米第14航空軍（中国）',sn:'在中国米空軍',side:'us',br:'空',sz:1,cmd:'クレア・シェンノート',
+  kf:[[T(1943,3,10),102.7,25]],
+  st:[[T(1943,3,10),'「フライング・タイガース」を母体に中国奥地から作戦'],
+      [T(1944,6),'日本の航空・輸送網を攻撃 ─ 大陸打通作戦を誘発']],
+  comp:[[T(1943,3,10),[['ac','約300機',300]]],
+        [T(1944,6),[['ac','約500機',500]]]],
+  tx:'中国大陸で活動した米陸軍航空隊。日本の航空兵力と長江の水運を執拗に攻撃し、その飛行場群を奪うために日本陸軍は1944年、大陸打通作戦を強いられることになった。'},
+ {n:'ソ連極東軍',sn:'ソ連極東軍',side:'us',br:'陸',sz:1.5,cmd:'A.ヴァシレフスキー',
+  kf:[[T(1945,8,9),119.5,47.5],[T(1945,8,20),123.4,41.8]],
+  st:[[T(1945,8,9),'三方向から満洲へ電撃侵攻'],
+      [T(1945,8,15),'停戦後も進撃を継続 ─ 満洲・南樺太・千島を占領']],
+  comp:[[T(1945,8,9),[['hei','約157万',1570000],['tk','約5,500両',5500],['ac','約3,400機',3400]]]],
+  tx:'独ソ戦を戦い抜いた精鋭を東方へ大移送し、1945年8月9日、三方向から満洲へ侵攻。弱体化した関東軍はわずか1週間で崩壊し、日本の降伏を決定づけた。'},
+];
+UN.forEach(u=>{u.t0=u.kf[0][0]; u.tEnd=u.die!==undefined?u.die:99;});
+
+/* ---------- ① 総戦力推移データ ---------- */
+ICO.tr='M3 10h18l-2.2 3H6Z M7 6.2h10v3.8H7Z M9 4h2.4v2.2H9Z M13 4h2.4v2.2H13Z';
+ICO.base='M11.2 2h1.6v11h-1.6Z M12.8 2.6h6.4l-2.1 2.6 2.1 2.6h-6.4Z M8 13h8v0Z';
+const TOT={
+ jp:[[0,{hei:2420000,bb:10,cv:10,sh:230,ss:64,ac:3200}],
+     [T(1942,8),{hei:2800000,bb:11,cv:8,sh:220,ss:60,ac:3000}],
+     [T(1943,12),{hei:3800000,bb:9,cv:9,sh:190,ss:50,ac:4000}],
+     [T(1944,7),{hei:4500000,bb:9,cv:6,sh:150,ss:40,ac:4500}],
+     [T(1944,11),{hei:5000000,bb:5,cv:4,sh:110,ss:35,ac:4500}],
+     [T(1945,8,15),{hei:5470000,bb:1,cv:2,sh:50,ss:30,ac:9000}]],
+ us:[[0,{hei:350000,bb:9,cv:3,sh:150,ss:55,ac:1500}],
+     [T(1942,8),{hei:700000,bb:6,cv:4,sh:200,ss:70,ac:2500}],
+     [T(1943,12),{hei:1800000,bb:12,cv:19,sh:400,ss:100,ac:6000}],
+     [T(1944,7),{hei:2800000,bb:17,cv:26,sh:800,ss:140,ac:10000}],
+     [T(1944,11),{hei:3300000,bb:21,cv:27,sh:1000,ss:160,ac:13000}],
+     [T(1945,8,15),{hei:4000000,bb:23,cv:28,sh:1200,ss:169,ac:15000}]],
+};
+const FTKEYS=['hei','bb','cv','sh','ss','ac'];
+
+/* ---------- ②③ 戦闘詳細シナリオ ----------
+   ext:[lon0,lon1,lat0,lat1] / hours: 全体時間 / bh: 開始時刻(時) / days,dshort: 日付表示
+   un: {id,n,side,tp(cv/bb/ca/dd/ss/tr/base/lnd),kf:[[h,lon,lat]],dmg?,die?,dieN?,dt(詳細HTML)}
+   st: 攻撃隊 {f,t(unit id),h0,h1,side,n} / ph: [[h,局面名,解説]] / ls: 追加損失 {h,side,tx} */
+const BS={
+/* ===== 真珠湾 ===== */
+pearl:{
+ title:'真珠湾攻撃',ds:'1941年12月8日（日本時間）／12月7日（現地時間）',
+ ext:[196,206,18,27],hours:4.5,bh:3,spd:0.35,
+ days:['12月8日'],dshort:['12/8'],
+ isl:[[202,21.35,'オアフ島・真珠湾',9],[204.6,19.6,'ハワイ島',13]],
+ un:[
+  {id:'kido',n:'南雲機動部隊',side:'jp',tp:'cv',kf:[[0,200.3,26.3],[4.5,199.8,26.6]],
+   dt:'<b>第一航空艦隊</b> ─ 空母6隻（赤城・加賀・蒼龍・飛龍・翔鶴・瑞鶴）、戦艦比叡・霧島、重巡2、駆逐艦9ほか。艦載機約350機（零戦・九七艦攻・九九艦爆）。指揮：南雲忠一中将。ハワイ北方約230浬から攻撃隊を発進させた。'},
+  {id:'usbb',n:'米戦艦群（戦艦通り）',side:'us',tp:'bb',kf:[[0,202.0,21.1]],dmg:0.8,
+   dt:'<b>太平洋艦隊戦艦部隊</b> ─ 在泊8隻：アリゾナ、オクラホマ、ウェストバージニア、カリフォルニア、ネバダ、テネシー、メリーランド、ペンシルベニア。フォード島東岸に二列係留され、格好の標的となった。'},
+  {id:'ariz',n:'アリゾナ',side:'us',tp:'bb',kf:[[0,202.35,21.45]],die:1.0,dieN:'戦艦アリゾナ爆沈（戦死1,177名）',
+   dt:'<b>戦艦アリゾナ</b> ─ ペンシルベニア級、基準排水量31,400トン。徹甲爆弾が前部火薬庫を誘爆させ、9分で沈没。乗員1,177名が戦死し、現在も湾内に記念館として眠る。'},
+  {id:'okla',n:'オクラホマ',side:'us',tp:'bb',kf:[[0,201.65,20.8]],die:1.1,dieN:'戦艦オクラホマ転覆（戦死429名）',
+   dt:'<b>戦艦オクラホマ</b> ─ ネバダ級。魚雷9本を受けて転覆し、429名が艦内に閉じ込められ戦死した。'},
+  {id:'field',n:'飛行場群',side:'us',tp:'base',kf:[[0,201.3,22.0]],dmg:0.7,
+   dt:'<b>オアフ島航空基地群</b> ─ ヒッカム・ホイラー・カネオヘほか。奇襲を警戒して翼を寄せ集めて並べられていた在地機約390機のうち、188機が破壊された。'},
+  {id:'uscv',n:'米空母（不在）',side:'us',tp:'cv',kf:[[0,198.0,19.0]],
+   dt:'<b>米空母部隊</b> ─ エンタープライズとレキシントンは航空機輸送任務で出港中、サラトガは西海岸で修理中。攻撃の主目標であった空母3隻はすべて難を逃れ、半年後のミッドウェーで日本に牙を剥くことになる。'},
+ ],
+ st:[
+  {f:'kido',t:'usbb',h0:0.35,h1:1.25,side:'jp',n:'第一波 183機（淵田美津雄総隊長）'},
+  {f:'kido',t:'field',h0:0.45,h1:1.3,side:'jp',n:'制空隊・飛行場攻撃'},
+  {f:'kido',t:'usbb',h0:1.7,h1:2.7,side:'jp',n:'第二波 167機'},
+ ],
+ ph:[
+  [0,'攻撃隊発進','ハワイ北方の機動部隊から第一波183機が発進。「ニイタカヤマノボレ一二〇八」の指令のもと、史上最大の奇襲作戦が始まった。'],
+  [0.35,'第一波攻撃 ─ トラトラトラ','「ワレ奇襲ニ成功セリ」。雷撃隊が戦艦群に殺到し、アリゾナは火薬庫の誘爆で轟沈。飛行場の在地機も次々と炎上した。'],
+  [1.7,'第二波攻撃','急降下爆撃隊主体の第二波が残存艦と飛行場を叩く。対空砲火は激しさを増し、第二波の損害は第一波を上回った。'],
+  [2.9,'攻撃終了 ─ 引き揚げ','戦艦4隻沈没・4隻損傷。だが燃料タンクと工廠は無傷のまま、南雲長官は第三次攻撃を行わず帰投を下令。米空母も討ち漏らした。'],
+ ],
+ ls:[
+  {h:1.2,side:'us',tx:'戦艦4隻沈没・4隻損傷'},
+  {h:1.3,side:'us',tx:'航空機188機破壊'},
+  {h:2.9,side:'us',tx:'米軍死者約2,400名'},
+  {h:2.9,side:'jp',tx:'日本側損失：航空機29機・特殊潜航艇5隻'},
+ ]},
+/* ===== 珊瑚海 ===== */
+coral:{
+ title:'珊瑚海海戦',ds:'1942年5月7日〜8日',
+ ext:[146,162,-19,-7.5],hours:40,bh:0,spd:2,
+ days:['5月7日','5月8日'],dshort:['5/7','5/8'],
+ land:'CORAL',
+ isl:[[160.1,-9.1,'ツラギ',4]],
+ un:[
+  {id:'mo5',n:'MO機動部隊（翔鶴・瑞鶴）',side:'jp',tp:'cv',kf:[[0,157.5,-12.5],[20,156.5,-14],[30,155.6,-14.8],[36,156.5,-13.5]],dmg:31,
+   dt:'<b>第五航空戦隊</b> ─ 空母翔鶴・瑞鶴、重巡2、駆逐艦6。艦載機約120機。指揮：高木武雄中将（航空指揮は原忠一少将）。真珠湾以来の精鋭部隊だが、この海戦の損耗でミッドウェーに参加できなくなる。'},
+  {id:'shoho',n:'祥鳳',side:'jp',tp:'cv',kf:[[0,152.6,-10.4],[10,153.1,-11]],die:10.4,dieN:'軽空母祥鳳沈没（日本空母の初喪失）',
+   dt:'<b>軽空母祥鳳</b> ─ 搭載機21機。攻略部隊の護衛中に米攻撃隊93機の集中攻撃を受け、爆弾13発・魚雷7本を被って沈没。米軍パイロットの「Scratch one flattop!（空母1隻消した）」の報告で知られる。'},
+  {id:'tr',n:'ポートモレスビー攻略船団',side:'jp',tp:'tr',kf:[[0,153.8,-9.3],[14,153.2,-10],[26,154.5,-8.8]],
+   dt:'<b>MO攻略部隊</b> ─ 輸送船11隻・陸軍南海支隊ほか約5,000名。ポートモレスビー上陸を目指したが、海戦の結果、史上初めて日本の進攻作戦が中止・反転された。'},
+  {id:'lex',n:'レキシントン',side:'us',tp:'cv',kf:[[0,156.3,-17],[20,155.4,-16.2],[30,155.0,-16]],dmg:31,die:36.5,dieN:'空母レキシントン沈没',
+   dt:'<b>空母レキシントン</b> ─ 巡洋戦艦改造の大型空母、搭載機約70機。爆弾・魚雷の命中後も一時は戦闘可能だったが、気化ガソリンの大爆発により放棄・雷撃処分された。'},
+  {id:'york',n:'ヨークタウン',side:'us',tp:'cv',kf:[[0,155.7,-16.4],[20,154.8,-15.6],[30,154.4,-15.4]],dmg:31.3,
+   dt:'<b>空母ヨークタウン（TF17旗艦）</b> ─ 搭載機約70機。指揮：F.フレッチャー少将。爆弾1発を被弾したが、突貫修理でわずか3日後にミッドウェーへ出撃し、日本側の想定を覆すことになる。'},
+ ],
+ st:[
+  {f:'lex',t:'shoho',h0:8,h1:10.4,side:'us',n:'米攻撃隊 93機'},
+  {f:'mo5',t:'lex',h0:29.3,h1:31.2,side:'jp',n:'日攻撃隊 69機'},
+  {f:'lex',t:'mo5',h0:29.5,h1:31,side:'us',n:'米攻撃隊 82機'},
+ ],
+ ph:[
+  [0,'索敵戦','互いに敵空母の位置をつかめぬまま、史上初の空母対空母の戦いが始まろうとしていた。'],
+  [8,'祥鳳撃沈','米攻撃隊が軽空母祥鳳を捕捉し集中攻撃。日本海軍は開戦以来初めて空母を失った。'],
+  [14,'夜の混乱','薄暮攻撃に向かった日本機が帰路を見失い、誤って米空母に着艦しかける珍事も。両軍とも翌朝の決戦を期す。'],
+  [29,'空母決戦','両軍ほぼ同時に攻撃隊を発進。互いの艦隊が一度も相手を視認しない、史上初の航空主兵の海戦となった。'],
+  [33,'両軍引き揚げ','翔鶴大破・レキシントン沈没。戦術的には互角だったが、モレスビー攻略は中止され、日本の南進は初めて押し止められた。'],
+ ],
+ ls:[
+  {h:31.5,side:'jp',tx:'翔鶴大破・艦載機約90機喪失'},
+  {h:33,side:'us',tx:'駆逐艦シムス・給油艦ネオショー沈没'},
+ ]},
+/* ===== ミッドウェー ===== */
+midway:{
+ title:'ミッドウェー海戦',ds:'1942年6月5日〜7日（日本時間）',
+ ext:[172,189,23.5,34.5],hours:60,bh:0,spd:2.6,
+ days:['6月5日','6月6日','6月7日'],dshort:['6/5','6/6','6/7'],
+ isl:[[182.6,28.2,'ミッドウェー島',5]],
+ un:[
+  {id:'akagi',n:'赤城',side:'jp',tp:'cv',kf:[[0,178.0,31.9],[7,179.8,30.3],[10.4,180.3,30.5]],dmg:10.4,die:29,dieN:'空母赤城沈没（味方駆逐艦により処分）',
+   dt:'<b>空母赤城（一航戦・南雲長官旗艦）</b> ─ 基準排水量36,500トン、搭載機66機。10時26分、エンタープライズ隊の急降下爆撃。命中弾はわずか2発だったが、兵装転換中の格納庫で爆弾・魚雷が誘爆し手の施しようがなくなった。'},
+  {id:'kaga',n:'加賀',side:'jp',tp:'cv',kf:[[0,178.3,31.6],[7,180.5,29.8]],dmg:10.4,die:19.4,dieN:'空母加賀沈没',
+   dt:'<b>空母加賀（一航戦）</b> ─ 搭載機72機、四空母中最大の搭載数。爆弾4発を被弾し大火災、夕刻沈没。艦長以下800名以上が戦死した。'},
+  {id:'soryu',n:'蒼龍',side:'jp',tp:'cv',kf:[[0,178.1,32.3],[7,179.4,30.4]],dmg:10.35,die:19.2,dieN:'空母蒼龍沈没',
+   dt:'<b>空母蒼龍（二航戦）</b> ─ 搭載機63機。ヨークタウン隊の急降下爆撃で3発を被弾、3分間で戦闘不能に。柳本艦長は退艦を拒み艦と運命を共にした。'},
+  {id:'hiryu',n:'飛龍',side:'jp',tp:'cv',kf:[[0,178.4,32.6],[7,180.2,30.9],[17,181.2,31.5]],dmg:17,die:33,dieN:'空母飛龍沈没（山口多聞少将戦死）',
+   dt:'<b>空母飛龍（二航戦・山口多聞少将）</b> ─ 搭載機57機。3空母被弾後もただ1隻残って2次の反撃を敢行、ヨークタウンを大破させた。夕刻に被弾炎上し、闘将山口少将は艦と共に沈んだ。'},
+  {id:'escort',n:'警戒部隊',side:'jp',tp:'bb',kf:[[0,178.6,32.0],[7,180.4,30.4],[24,178.5,31.3]],
+   dt:'<b>機動部隊警戒隊</b> ─ 戦艦榛名・霧島、重巡利根・筑摩、軽巡長良、駆逐艦12。利根4号機の索敵機発進遅延が、米空母発見の遅れにつながったとされる。'},
+  {id:'yamamoto',n:'主力部隊（大和）',side:'jp',tp:'bb',kf:[[0,173.0,31.5],[24,176.0,30.6],[40,173.5,31.3]],
+   dt:'<b>連合艦隊主力部隊</b> ─ 戦艦大和（山本長官旗艦）・長門・陸奥ほか。機動部隊の300浬後方を進んだため戦闘に間に合わず、「世界最強の戦艦部隊」は一発も主砲を撃つことなく反転した。'},
+  {id:'inv',n:'攻略船団',side:'jp',tp:'tr',kf:[[0,174.5,25.5],[20,176.2,26.3],[32,174.3,25.7]],
+   dt:'<b>ミッドウェー攻略部隊</b> ─ 輸送船12隻、一木支隊・海軍陸戦隊ら上陸部隊約5,800名。機動部隊壊滅により上陸は中止された。'},
+  {id:'mikuma',n:'三隈',side:'jp',tp:'ca',kf:[[20,176.5,26.3],[55,179.8,27.6]],dmg:50,die:55,dieN:'重巡三隈沈没',
+   dt:'<b>重巡三隈（第7戦隊）</b> ─ 撤退中に僚艦最上と衝突して落伍し、米艦載機の追撃を受けて沈没。大破した最上は奇跡的に生還した。'},
+  {id:'i168',n:'伊168',side:'jp',tp:'ss',kf:[[30,182.0,28.8],[57,184.5,30.7]],
+   dt:'<b>潜水艦 伊号第168</b>（田辺弥八艦長）─ 漂流するヨークタウンを2日越しに追跡し、魚雷4本を発射。空母と駆逐艦ハンマンを仕留め、敗戦の中で唯一の殊勲を挙げた。'},
+  {id:'mid',n:'ミッドウェー基地',side:'us',tp:'base',kf:[[0,182.6,28.2]],dmg:5.5,
+   dt:'<b>ミッドウェー島守備隊</b> ─ 海兵第6防衛大隊・海兵航空群MAG-22ほか約3,000名。航空機約120機（B-17爆撃機、PBYカタリナ飛行艇、海兵隊戦闘機・急降下爆撃機）。基地機の攻撃は戦果こそなかったが、南雲部隊を翻弄し続けた。'},
+  {id:'tf16',n:'TF16',side:'us',tp:'cv',kf:[[0,185.8,31.8],[10,184.5,30.7],[24,185.5,30.4],[48,183.0,29.4]],
+   dt:'<b>第16任務部隊</b> ─ 空母エンタープライズ・ホーネット、重巡5・軽巡1・駆逐艦9。艦載機約158機（F4F・SBD・TBD）。指揮：R.スプルーアンス少将。雷撃隊（VT-8は15機全機未帰還）の犠牲の上に、急降下爆撃隊が勝機をつかんだ。'},
+  {id:'york',n:'ヨークタウン',side:'us',tp:'cv',kf:[[0,186.4,32.4],[10,185.2,31.3],[14,185.0,31.1],[58,184.7,30.9]],dmg:12,die:58,dieN:'空母ヨークタウン沈没（伊168の雷撃）',
+   dt:'<b>空母ヨークタウン（TF17旗艦・フレッチャー少将）</b> ─ 珊瑚海の損傷を3日で応急修理して出撃。飛龍隊の2次にわたる攻撃で大破・漂流し、最後は伊168の魚雷で沈んだ。'},
+ ],
+ st:[
+  {f:'akagi',t:'mid',h0:4.5,h1:6.8,side:'jp',n:'友永隊 108機'},
+  {f:'mid',t:'akagi',h0:7.0,h1:8.6,side:'us',n:'基地航空隊 52機'},
+  {f:'tf16',t:'kaga',h0:7.6,h1:10.4,side:'us',n:'エンタープライズ隊（SBD急降下爆撃）'},
+  {f:'york',t:'soryu',h0:9.0,h1:10.4,side:'us',n:'ヨークタウン隊'},
+  {f:'hiryu',t:'york',h0:10.9,h1:12.1,side:'jp',n:'小林隊 18機'},
+  {f:'hiryu',t:'york',h0:13.4,h1:14.6,side:'jp',n:'友永隊 10機（雷撃）'},
+  {f:'tf16',t:'hiryu',h0:15.8,h1:17.1,side:'us',n:'米急降下爆撃隊 24機'},
+  {f:'tf16',t:'mikuma',h0:52,h1:55,side:'us',n:'追撃空襲'},
+  {f:'i168',t:'york',h0:56.5,h1:58,side:'jp',n:'雷撃'},
+ ],
+ ph:[
+  [0,'両軍、接敵へ','暗号解読により米軍は待ち伏せ態勢。日本側は「米空母は真珠湾」と信じ、その出現をまだ知らない。'],
+  [4.5,'ミッドウェー空襲','友永隊108機が基地を空襲。「第二次攻撃ノ要アリ」の打電が、運命の兵装転換を引き起こす。'],
+  [7,'基地航空隊の反撃と兵装転換','米基地機の波状攻撃をすべて撃退。だが陸用爆弾への転換作業中に「敵ラシキモノ一〇隻見ユ」の報。格納庫は爆弾と魚雷で溢れた。'],
+  [10.2,'運命の5分間','米雷撃隊の全滅と引き換えに、上空はがら空きに。10時20分過ぎ、雲間から現れた急降下爆撃隊により、わずか数分で赤城・加賀・蒼龍が火達磨となった。'],
+  [10.9,'飛龍の反撃','ただ1隻残った飛龍が2次にわたり攻撃隊を放ち、ヨークタウンに爆弾3発・魚雷2本を命中させ大破させる。'],
+  [15.8,'飛龍被弾 ─ 機動部隊壊滅','夕刻、米攻撃隊が飛龍を捕捉。これで南雲部隊の空母4隻すべてが失われた。山本長官は夜戦による挽回を断念し、全軍に撤退を下令する。'],
+  [30,'追撃戦','撤退する日本艦隊を米軍が追撃。重巡三隈が沈み、伊168が留めの雷撃でヨークタウンを仕留めた。開戦からちょうど半年、戦争の潮目は完全に変わった。'],
+ ],
+ ls:[
+  {h:10.5,side:'jp',tx:'赤城・加賀・蒼龍 被弾・大火災'},
+  {h:33,side:'jp',tx:'艦載機約290機・熟練搭乗員多数を喪失'},
+  {h:58,side:'us',tx:'米側損失：空母1・駆逐艦1・航空機約150機'},
+ ]},
+/* ===== マリアナ沖 ===== */
+marianas:{
+ title:'マリアナ沖海戦',ds:'1944年6月19日〜20日',
+ ext:[131,147,10,20],hours:40,bh:0,spd:1.9,
+ days:['6月19日','6月20日'],dshort:['6/19','6/20'],
+ isl:[[145.7,15.2,'サイパン',5],[144.8,13.5,'グアム',5],[145.6,15.0,'',3]],
+ un:[
+  {id:'taiho',n:'大鳳',side:'jp',tp:'cv',kf:[[0,134.5,13.6],[12,135.6,13.9]],dmg:9.3,die:16.5,dieN:'空母大鳳沈没（雷撃→気化ガス爆発）',
+   dt:'<b>空母大鳳（小沢長官旗艦）</b> ─ 装甲飛行甲板を持つ最新鋭艦、搭載機約75機。米潜アルバコアの魚雷1本は致命傷ではなかったが、漏れた航空ガソリンの気化ガスが午後に大爆発を起こし轟沈した。'},
+  {id:'shokaku',n:'翔鶴',side:'jp',tp:'cv',kf:[[0,134.2,13.2],[12,135.3,13.5]],dmg:11.2,die:14,dieN:'空母翔鶴沈没（カヴァラの雷撃）',
+   dt:'<b>空母翔鶴（甲部隊）</b> ─ 真珠湾以来の歴戦の大型空母。米潜カヴァラの魚雷3本を受け、誘爆により沈没した。'},
+  {id:'zuikaku',n:'瑞鶴ほか甲部隊',side:'jp',tp:'cv',kf:[[0,134.8,13.9],[12,135.9,14.2],[30,133.2,14.9],[38,131.9,15.4]],
+   dt:'<b>甲部隊残存（瑞鶴）</b> ─ 旗艦喪失後、小沢長官は瑞鶴に将旗を移した。翔鶴型最後の1隻として生き残るが、4か月後のレイテ沖で囮として沈むことになる。'},
+  {id:'hiyo',n:'飛鷹',side:'jp',tp:'cv',kf:[[0,133.8,12.5],[30,132.5,13.7]],dmg:33.8,die:34.5,dieN:'空母飛鷹沈没',
+   dt:'<b>空母飛鷹（乙部隊）</b> ─ 商船改造空母。2日目薄暮の米軍追撃で雷撃を受け沈没した。隼鷹・龍鳳も損傷した。'},
+  {id:'zenei',n:'前衛部隊（大和・武蔵）',side:'jp',tp:'bb',kf:[[0,136.6,13.6],[12,137.6,13.9],[30,134.6,14.6]],
+   dt:'<b>前衛部隊（栗田健男中将）</b> ─ 戦艦大和・武蔵・金剛・榛名、重巡多数。機動部隊の100浬前方で米攻撃隊を吸収する「弾除け」の役割を担った。'},
+  {id:'alb',n:'アルバコア',side:'us',tp:'ss',kf:[[6,135.3,13.7],[14,135.8,13.5]],
+   dt:'<b>米潜水艦アルバコア</b> ─ 散開線で待ち伏せ、発進作業中の旗艦大鳳を雷撃。命中はわずか1本だったが、それが致命傷の引き金となった。'},
+  {id:'cav',n:'カヴァラ',side:'us',tp:'ss',kf:[[8,134.9,13.0],[14,135.5,12.9]],
+   dt:'<b>米潜水艦カヴァラ</b> ─ 処女航海で翔鶴に魚雷3本を命中させ撃沈。米潜水艦隊の充実ぶりを象徴する戦果だった。'},
+  {id:'tf58',n:'TF58（空母15隻）',side:'us',tp:'cv',kf:[[0,142.6,14.9],[12,143.3,15.1],[30,138.6,14.9],[38,140.2,15.1]],
+   dt:'<b>第58任務部隊（M.ミッチャー中将）</b> ─ 正規空母7・軽空母8、艦載機約900機。新型F6Fヘルキャット戦闘機、VT信管（近接信管）、レーダー管制迎撃が「空の壁」を築き、日本攻撃隊を待ち受けた。'},
+  {id:'bbline',n:'米戦艦群',side:'us',tp:'bb',kf:[[0,141.9,14.5],[12,142.6,14.7],[30,139.5,14.5]],
+   dt:'<b>第7任務群</b> ─ 新型戦艦7隻（ワシントン、ノースカロライナほか）。空母の手前に防空陣を敷き、対空砲火の弾幕で攻撃隊を阻んだ。'},
+ ],
+ st:[
+  {f:'taiho',t:'tf58',h0:8.5,h1:10.2,side:'jp',n:'第一次攻撃隊 69機（生還27機）'},
+  {f:'zuikaku',t:'tf58',h0:9.5,h1:11.5,side:'jp',n:'第二次攻撃隊 128機（生還31機）'},
+  {f:'hiyo',t:'tf58',h0:11,h1:13,side:'jp',n:'第三・四次攻撃隊 129機（大半未帰還）'},
+  {f:'alb',t:'taiho',h0:9,h1:9.3,side:'us',n:'雷撃'},
+  {f:'cav',t:'shokaku',h0:10.9,h1:11.2,side:'us',n:'雷撃'},
+  {f:'tf58',t:'hiyo',h0:32.5,h1:34.5,side:'us',n:'薄暮攻撃 216機'},
+ ],
+ ph:[
+  [0,'あ号作戦発動','サイパン来攻の米艦隊に対し、日本機動部隊の全力が出撃。米艦載機の射程外から攻撃する「アウトレンジ戦法」に望みを託した。'],
+  [8,'マリアナの七面鳥撃ち','4次にわたる攻撃隊373機は、レーダー管制のF6F迎撃網とVT信管の弾幕に阻まれ、戦果のないまま次々と墜ちていった。'],
+  [9,'潜水艦の伏撃','攻撃隊発進の真っ最中、散開線の米潜水艦が旗艦大鳳と翔鶴を雷撃する。'],
+  [14,'空母2隻の喪失','翔鶴沈没、続いて大鳳が気化ガス爆発で轟沈。小沢長官は瑞鶴に旗艦を移し、なお決戦継続を企図した。'],
+  [30,'米軍の追撃','薄暮、限界距離からの米攻撃隊216機が飛鷹を撃沈。帰投した米軍機の多くも夜間着艦に失敗して失われた。'],
+  [36,'機動部隊の壊滅','残存艦載機わずか35機。空母という「箱」は残っても、搭載機と搭乗員を失った日本機動部隊は事実上壊滅した。'],
+ ],
+ ls:[
+  {h:13,side:'jp',tx:'航空機約330機喪失（出撃373機中）'},
+  {h:38,side:'us',tx:'米側損失：航空機約130機（多くは夜間着艦失敗）'},
+ ]},
+/* ===== レイテ沖 ===== */
+leyte:{
+ title:'レイテ沖海戦',ds:'1944年10月23日〜25日',
+ ext:[117,131,5,20],hours:70,bh:0,spd:3,
+ days:['10月23日','10月24日','10月25日'],dshort:['10/23','10/24','10/25'],
+ land:'LEYTE',
+ isl:[],
+ un:[
+  {id:'kurita',n:'栗田艦隊',side:'jp',tp:'bb',kf:[[0,117.5,8.5],[6.5,117.9,9.2],[20,119.5,11],[36,121.8,12.8],[43,122.5,13],[46,121.6,12.6],[50,123.5,12.4],[54.5,125.9,11.5],[57.5,125.2,11.9],[62,121.6,13.2]],
+   dt:'<b>第一遊撃部隊（栗田健男中将）</b> ─ 戦艦大和・武蔵・長門・金剛・榛名、重巡10、軽巡2、駆逐艦15。レイテ湾の米上陸船団殴り込みを唯一の目的とした、連合艦隊最後の水上打撃部隊。'},
+  {id:'musashi',n:'武蔵',side:'jp',tp:'bb',kf:[[20,119.8,11.2],[36,121.9,12.8],[43.5,122.2,12.9]],dmg:36,die:43.5,dieN:'戦艦武蔵沈没（魚雷20本・爆弾17発）',
+   dt:'<b>戦艦武蔵</b> ─ 大和型2番艦、基準排水量64,000トン・46cm主砲9門。シブヤン海で米艦載機延べ259機の攻撃が集中。魚雷20本・爆弾17発に耐え抜いた末、10月24日19時35分に沈没した。'},
+  {id:'atago',n:'愛宕・摩耶',side:'jp',tp:'ca',kf:[[0,117.4,8.4],[6.5,117.9,9.3]],die:6.8,dieN:'重巡愛宕・摩耶沈没、高雄大破（米潜の伏撃）',
+   dt:'<b>第四戦隊（愛宕＝栗田長官旗艦）</b> ─ パラワン水道で米潜ダーター・デイスの伏撃を受け、愛宕・摩耶が轟沈、高雄が大破。栗田長官は海に投げ出され、大和へ将旗を移した。'},
+  {id:'nishimura',n:'西村艦隊',side:'jp',tp:'bb',kf:[[0,118,7.3],[30,121,8.3],[48,123.8,9.3],[52,125.1,10.1]],die:52.5,dieN:'西村艦隊壊滅（扶桑・山城沈没、西村中将戦死）',
+   dt:'<b>第三部隊（西村祥治中将）</b> ─ 戦艦扶桑・山城、重巡最上、駆逐艦4。スリガオ海峡を夜間突破してレイテ湾を南から挟撃する計画だったが、待ち構える米艦隊の丁字陣に正面から突入した。'},
+  {id:'ozawa',n:'小沢囮部隊',side:'jp',tp:'cv',kf:[[0,124,19.5],[40,124.4,18.9],[56,124.7,18.3],[64,124.9,18.0]],dmg:57,die:64,dieN:'空母瑞鶴・瑞鳳・千歳・千代田沈没（囮任務完遂）',
+   dt:'<b>機動部隊本隊（小沢治三郎中将）</b> ─ 空母瑞鶴・瑞鳳・千歳・千代田、航空戦艦伊勢・日向ほか。艦載機はわずか108機。ハルゼーの主力を北方へ釣り上げる「囮」となることが任務だった。真珠湾攻撃に参加した最後の空母瑞鶴もここで沈む。'},
+  {id:'darter',n:'ダーター・デイス',side:'us',tp:'ss',kf:[[0,117.2,8.7],[8,117.9,9.1]],
+   dt:'<b>米潜水艦ダーター／デイス</b> ─ パラワン水道で栗田艦隊を発見・通報し、夜明けの伏撃で重巡3隻を撃破。作戦の出鼻を挫いた。'},
+  {id:'tf38',n:'第38任務部隊',side:'us',tp:'cv',kf:[[0,128.5,14],[24,128,15.5],[44,127.6,16.8],[56,127,17.6],[64,126.6,17.9]],
+   dt:'<b>第38任務部隊（ハルゼー大将・ミッチャー中将）</b> ─ 正規空母9・軽空母8、艦載機約1,000機。シブヤン海で武蔵を沈めた後、小沢部隊の囮に乗って全力で北上し、サンベルナルジノ海峡をがら空きにした。'},
+  {id:'taffy',n:'護衛空母群（タフィ3）',side:'us',tp:'cv',kf:[[40,126.7,11.3],[54,126.4,10.8],[58,126.2,10.6]],dmg:56,
+   dt:'<b>第77.4.3任務群「タフィ3」（C.スプレイグ少将）</b> ─ 護衛空母6・駆逐艦3・護衛駆逐艦4。商船構造の小型空母群が、突如出現した大和以下の戦艦部隊と交戦するという、海戦史上稀に見る不利な戦いを強いられ、決死の反撃で凌ぎ切った。'},
+  {id:'old7',n:'第7艦隊戦艦部隊',side:'us',tp:'bb',kf:[[20,125.6,10.3],[50,125.4,9.8]],
+   dt:'<b>第7艦隊火力支援部隊（オルデンドルフ少将）</b> ─ 旧式戦艦6隻（うち5隻は真珠湾で損傷後に復旧したウェストバージニア、カリフォルニアなど）、巡洋艦8、駆逐艦28。スリガオ海峡に丁字陣を敷き、真珠湾の意趣返しを果たした。'},
+ ],
+ st:[
+  {f:'darter',t:'atago',h0:6.2,h1:6.8,side:'us',n:'雷撃（パラワン水道）'},
+  {f:'tf38',t:'musashi',h0:34,h1:43,side:'us',n:'シブヤン海空襲 延べ259機'},
+  {f:'old7',t:'nishimura',h0:51,h1:52.5,side:'us',n:'スリガオ海峡夜戦（丁字砲撃）'},
+  {f:'tf38',t:'ozawa',h0:56,h1:64,side:'us',n:'エンガノ岬沖空襲 延べ527機'},
+  {f:'kurita',t:'taffy',h0:54.7,h1:57.4,side:'jp',n:'サマール沖砲撃戦'},
+  {f:'taffy',t:'kurita',h0:55,h1:57.4,side:'us',n:'護衛空母機・駆逐艦の反撃'},
+ ],
+ ph:[
+  [0,'捷一号作戦発動','レイテに上陸した米軍を叩くため、連合艦隊は残存全力を4部隊に分けて出撃。艦隊の生存より、上陸船団撃滅を優先する決死の作戦だった。'],
+  [6,'パラワン水道の悲劇','夜明け、米潜2隻の伏撃で旗艦愛宕など重巡3隻を瞬時に失う。栗田長官は泳いで脱出し、大和へ移乗した。'],
+  [34,'シブヤン海海戦','米艦載機の波状攻撃が武蔵に集中。「不沈艦」は魚雷20本に耐えた末に沈んだ。栗田艦隊は一時反転し、米軍は「撃退した」と判断する。'],
+  [50.5,'スリガオ海峡夜戦','西村艦隊が旧式戦艦6隻の丁字陣に突入しほぼ全滅。史上最後の戦艦同士の砲撃戦となった。'],
+  [54.5,'サマール沖海戦','夜間に海峡を抜けた栗田艦隊が、護衛空母群に殴り込む。大和の主砲が初めて敵艦に火を吹いた。だが護衛艦の決死の反撃と戦況誤認の中、栗田長官は湾突入を目前に謎の反転を決断する。'],
+  [56,'エンガノ岬沖 ─ 囮の完遂','小沢部隊が北方でハルゼー主力を釣り上げ、空母4隻と引き換えにレイテ湾への扉を開けていた。だがその扉を、栗田艦隊がくぐることはなかった。'],
+  [62,'連合艦隊の終焉','この海戦で日本海軍は艦艇28隻を失い、組織的戦力として消滅。同じ日、神風特別攻撃隊が初出撃し、護衛空母セント・ローを沈めた。'],
+ ],
+ ls:[
+  {h:57,side:'us',tx:'護衛空母ガンビア・ベイ、駆逐艦3隻沈没'},
+  {h:58.8,side:'us',tx:'護衛空母セント・ロー沈没（神風特攻の初戦果）'},
+  {h:66,side:'jp',tx:'日本側喪失：戦艦3・空母4・重巡6ほか艦艇28隻'},
+ ]},
+};
+const BSMAP={'真珠湾攻撃':'pearl','珊瑚海海戦':'coral','ミッドウェー海戦':'midway','マリアナ沖海戦':'marianas','レイテ沖海戦':'leyte'};
+
+/* ---------- phases ---------- */
+const PH=[
+ {t:0,chip:'緒戦・進攻期',name:'第一段作戦 ─ 緒戦の快進撃',
+  tx:'真珠湾攻撃と南方作戦の同時発動で開戦。香港・マニラ・シンガポール・蘭印が相次いで陥落し、わずか半年で勢力圏は史上最大に達した。しかし米空母の撃ち漏らしと、伸び切った補給線が後の禍根となる。'},
+ {t:T(1942,6,5),chip:'攻勢の限界',name:'転換点 ─ ミッドウェーの敗北',
+  tx:'珊瑚海で南進が止まり、ミッドウェーで主力空母4隻と熟練搭乗員を喪失。半年で築いた航空優勢は崩れ、戦争の主導権は米国へ移った。国内では敗北が隠され、発表と実態の乖離が始まる。'},
+ {t:T(1942,8,7),chip:'消耗戦',name:'攻防の逆転 ─ ソロモンの消耗戦',
+  tx:'ガダルカナルを巡る半年の死闘で、日本は艦艇・航空機・熟練兵を回復不能なペースで失っていく。米国の圧倒的な工業力の前に、南東方面の戦線はじりじりと後退した。'},
+ {t:T(1943,11,20),chip:'防衛圏の崩壊',name:'絶対国防圏の崩壊',
+  tx:'米軍は中部太平洋を「飛び石」で突き進み、タラワ、マーシャル、トラックと拠点が次々に無力化。1944年夏のサイパン陥落で「絶対国防圏」は破られ、本土はB-29の爆撃圏内に。銃後では学徒と女性の動員が極限化していく。'},
+ {t:T(1945,1,1),chip:'本土への道',name:'本土決戦前夜 ─ 焦土の祖国',
+  tx:'硫黄島・沖縄で凄惨な地上戦が続く間、本土の都市は空襲で焼かれ、海上輸送は途絶し国民生活は崩壊。特攻が常態化する中、軍は「一億玉砕」の本土決戦を準備していた。'},
+ {t:T(1945,8,6),chip:'敗　戦',name:'原爆・ソ連参戦・終戦',
+  tx:'広島・長崎への原爆投下とソ連参戦により、8月14日「聖断」でポツダム宣言受諾が決定。15日の玉音放送で3年8か月の戦争は終わった。9月2日、東京湾上で降伏文書に調印し、太平洋戦争は正式に終結した。'},
+];
+
+/* ---------- build static map ---------- */
+const NS='http://www.w3.org/2000/svg';
+const el=(tag,at)=>{const e=document.createElementNS(NS,tag);for(const k in at)e.setAttribute(k,at[k]);return e};
+const grid=document.getElementById('grid');
+for(let lon=90;lon<=200;lon+=10){
+  grid.append(el('line',{x1:px(lon),y1:0,x2:px(lon),y2:H,class:'gridline'}));
+  const t=el('text',{x:px(lon)+3,y:H-6,class:'gridlabel'});t.textContent=(lon>180?360-lon+'°W':lon+'°E');grid.append(t);
+}
+for(let lat=-10;lat<=50;lat+=10){
+  grid.append(el('line',{x1:0,y1:py(lat),x2:W,y2:py(lat),class:'gridline'}));
+  const t=el('text',{x:4,y:py(lat)-3,class:'gridlabel'});t.textContent=(lat<0?-lat+'°S':lat+'°N');grid.append(t);
+}
+const landg=document.getElementById('landg');
+let landPaths=[];   /* [{el, region}] for occupation coloring */
+function drawFallback(){
+  landg.innerHTML=''; landPaths=[];
+  lands.forEach((a,i)=>{
+    const p=el('polygon',{points:poly(a),class:'land'});
+    landg.append(p); landPaths.push({el:p,region:landRegions[i]});
+  });
+}
+drawFallback();
+const isleg=document.getElementById('isleg');
+isles.forEach(i=>isleg.append(el('circle',{cx:px(i[0]),cy:py(i[1]),r:i[2],class:'island'})));
+const labels=document.getElementById('labels');
+landNames.forEach(l=>{const t=el('text',{x:px(l[0]),y:py(l[1]),class:'landlabel','text-anchor':'middle'});t.textContent=l[2];labels.append(t)});
+seaNames.forEach(l=>{const t=el('text',{x:px(l[0]),y:py(l[1]),class:'sealabel','text-anchor':'middle'});t.textContent=l[2];labels.append(t)});
+isles.forEach(i=>{if(i[3]){const t=el('text',{x:px(i[0])+6,y:py(i[1])-5,class:'landlabel small'});t.textContent=i[3];labels.append(t)}});
+
+/* ---------- real coastlines: Natural Earth 110m via cdnjs (datamaps) ---------- */
+const geostatus=document.getElementById('geostatus');
+function loadScript(src){return new Promise((ok,ng)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=ng;document.head.append(s)})}
+(async()=>{
+  try{
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.20/topojson.min.js');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/datamaps/0.5.9/datamaps.world.min.js');
+    const topo=window.Datamap.prototype.worldTopo;
+    const key=Object.keys(topo.objects)[0];
+    const feats=window.topojson.feature(topo,topo.objects[key]).features;
+    const frag=document.createDocumentFragment();
+    const newPaths=[];
+    const wrap=lon=>lon<-30?lon+360:lon;
+    let drawn=0;
+    feats.forEach(f=>{
+      const g=f.geometry; if(!g)return;
+      const region=f.id||'';
+      const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+      polys.forEach(rings=>{
+        const outer=rings[0].map(c=>[wrap(c[0]),c[1]]);
+        const inWin=outer.some(c=>c[0]>=LON0-4&&c[0]<=LON1+4&&c[1]>=LAT0-4&&c[1]<=LAT1+4);
+        if(!inWin)return;
+        let d='';
+        rings.forEach(r=>{
+          const pts=r.map(c=>[wrap(c[0]),c[1]]);
+          d+='M'+pts.map(c=>px(c[0]).toFixed(1)+' '+py(c[1]).toFixed(1)).join('L')+'Z';
+        });
+        const p=el('path',{d,class:'land','fill-rule':'evenodd'});
+        frag.append(p); newPaths.push({el:p,region});
+        drawn++;
+      });
+    });
+    if(!drawn)throw new Error('no features in window');
+    landg.innerHTML='';
+    landg.append(frag);
+    landPaths=newPaths;
+    geostatus.textContent='地形：Natural Earth（実データ）';
+    setTimeout(()=>geostatus.style.opacity='0.4',2500);
+    render();
+  }catch(e){
+    geostatus.textContent='地形：簡略表示（高精細データを読み込めませんでした）';
+  }
+})();
+
+/* ---------- battle / domestic markers ---------- */
+const mg=document.getElementById('markers');
+EV.forEach((e,i)=>{
+  const g=el('g',{class:'marker '+e.r,transform:`translate(${px(e.lon)},${py(e.lat)})`,tabindex:'0',role:'button','aria-label':e.n});
+  g.append(el('circle',{class:'ring',r:5}));
+  g.append(el('circle',{class:'core',r:e.r==='home'?4.5:5.5}));
+  const lab=el('text',{x:9,y:4});lab.textContent=e.n.split('（')[0].replace(/の戦い|攻略|占領.*/,'');g.append(lab);
+  g.style.display='none';
+  g.addEventListener('click',()=>selectEv(i));
+  g.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();selectEv(i)}});
+  mg.append(g); e.node=g;
+});
+
+let selUnit=null;
+function clearSel(){
+  EV.forEach(e=>e.node.classList.remove('selected'));
+  UN.forEach(u=>{u.node.classList.remove('selected');u.inner.setAttribute('transform',`scale(${u.sz})`)});
+  selUnit=null;
+}
+function selectEv(i){
+  clearSel();
+  const e=EV[i]; e.node.classList.add('selected');
+  const badge={jp:'日本側勝利',allied:'連合国側勝利',draw:'引き分け',end:'終戦',home:'国内・政治'}[e.r];
+  document.getElementById('detail').innerHTML=
+   `<div class="dname">${e.n}</div><div class="ddate">${e.ds}</div>`+
+   `<span class="badge ${e.r}">${badge}</span><div>${e.tx}</div>`;
+  const bsid=BSMAP[e.n];
+  if(bsid){
+    const b=document.createElement('button');
+    b.className='bvopen-btn';b.textContent='⚔ 戦局詳細を開く';
+    b.addEventListener('click',()=>openBattle(bsid));
+    document.getElementById('detail').appendChild(b);
+  }
+  if(+slider.value < e.t){slider.value=Math.min(45.7,e.t+0.15);render();}
+}
+
+/* ---------- unit (凸) markers ---------- */
+const ug=document.getElementById('units');
+const tg=document.getElementById('trails');
+const TOTSU='M -9 6 L -9 -1 L -4 -1 L -4 -6 L 4 -6 L 4 -1 L 9 -1 L 9 6 Z';
+UN.forEach((u,i)=>{
+  const g=el('g',{class:'unit '+u.side,tabindex:'0',role:'button','aria-label':u.n});
+  const inner=el('g',{class:'inner',transform:`scale(${u.sz})`});
+  inner.append(el('path',{d:TOTSU,class:'box'}));
+  const br=el('text',{class:'br',y:3.2});br.textContent=u.br;inner.append(br);
+  g.append(inner);
+  const nm=el('text',{class:'uname',y:10*u.sz+8});nm.textContent=u.sn;g.append(nm);
+  g.style.display='none';
+  g.addEventListener('click',()=>selectUn(i));
+  g.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();selectUn(i)}});
+  ug.append(g); u.node=g; u.inner=inner;
+  const tr=el('polyline',{class:'trail '+u.side,points:''});
+  tg.append(tr); u.trail=tr;
+});
+function unitPos(u,t){
+  const kf=u.kf;
+  if(t<=kf[0][0])return [kf[0][1],kf[0][2]];
+  if(t>=kf[kf.length-1][0])return [kf[kf.length-1][1],kf[kf.length-1][2]];
+  let i=0;while(kf[i+1][0]<t)i++;
+  const a=kf[i],b=kf[i+1],f=(t-a[0])/(b[0]-a[0]||1);
+  return [a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f];
+}
+function compAt(u,t){
+  let cur=u.comp[0],prev=null;
+  u.comp.forEach(c=>{if(t>=c[0]){prev=cur===c?prev:cur;cur=c;}});
+  if(t<u.comp[0][0])prev=null;
+  return {cur,prev:prev===cur?null:prev};
+}
+function buildCompHTML(u,t){
+  const {cur,prev}=compAt(u,t);
+  const d=monthName(Math.max(t,cur[0]));
+  const cls=u.side==='jp'?'unit-ico-jp':'unit-ico-us';
+  let html=`<div class="comphead">編成戦力（${d.y}年${d.m}月時点・概数）</div>`;
+  cur[1].forEach(it=>{
+    const [k,disp,nv]=it;
+    let trend='';
+    if(prev){
+      const pit=prev[1].find(p=>p[0]===k);
+      if(pit&&typeof nv==='number'&&typeof pit[2]==='number'&&pit[2]!==nv){
+        trend=nv>pit[2]?`<span class="tr up">▲ ${fmt(pit[2])}→${fmt(nv)}</span>`
+                       :`<span class="tr dn">▼ ${fmt(pit[2])}→${fmt(nv)}</span>`;
+      }
+    }
+    html+=`<div class="crow"><svg viewBox="0 0 24 14"><path class="${cls}" d="${ICO[k]}"/></svg>`+
+          `<span class="ck">${KLBL[k]}</span><span class="cv">${disp}</span>${trend}</div>`;
+  });
+  return html;
+}
+function selectUn(i){
+  clearSel();
+  const u=UN[i]; selUnit=i;
+  u.node.classList.add('selected');
+  u.inner.setAttribute('transform',`scale(${u.sz*1.8})`);
+  updateUnitDetail();
+}
+function updateUnitDetail(){
+  if(selUnit===null)return;
+  const u=UN[selUnit], t=+slider.value;
+  let str=u.st[0][1]; u.st.forEach(s=>{if(t>=s[0])str=s[1]});
+  const dead=t>u.tEnd;
+  const brName={'海':'海軍部隊','陸':'陸軍部隊','空':'航空部隊'}[u.br];
+  const sideName=u.side==='jp'?'日本軍':'連合軍';
+  document.getElementById('detail').innerHTML=
+   `<div class="dname">凸 ${u.n}</div>`+
+   `<span class="badge ${u.side}">${sideName}・${brName}</span>`+
+   (dead?'<span class="badge end">壊滅・解隊</span>':'')+
+   `<table><tr><td>司令官</td><td>${u.cmd}</td></tr>`+
+   `<tr><td>状況</td><td>${str}</td></tr></table>`+
+   buildCompHTML(u,Math.min(t,u.tEnd))+
+   `<div style="margin-top:8px">${u.tx}</div>`;
+}
+
+/* ---------- timeline ticks ---------- */
+const slider=document.getElementById('slider');
+const ticks=document.getElementById('ticks');
+EV.forEach(e=>{
+  const d=document.createElement('div');d.className='tick'+(e.r==='home'?' home':'');
+  d.style.left=(e.t/45.7*100)+'%';
+  d.style.background={jp:'var(--jp-red)',allied:'var(--allied-blue)',draw:'var(--gold)',end:'#e8dfc8',home:'var(--home-violet)'}[e.r];
+  ticks.append(d);
+});
+
+/* ---------- layer toggles ---------- */
+const lyr={jp:document.getElementById('lyr-jp'),us:document.getElementById('lyr-us'),
+           ev:document.getElementById('lyr-ev'),hm:document.getElementById('lyr-hm')};
+Object.values(lyr).forEach(c=>c.addEventListener('change',render));
+
+/* ---------- render loop ---------- */
+const zone=document.getElementById('zone');
+function render(){
+  const t=+slider.value;
+  zone.setAttribute('points',poly(zoneAt(t)));
+  const d=monthName(t);
+  document.getElementById('tl-date').textContent=`${d.y}年${d.m}月${d.day}日`;
+  document.getElementById('bigdate').firstChild.textContent=`${d.y}年${d.m}月`;
+  let ph=PH[0]; PH.forEach(p=>{if(t>=p.t)ph=p});
+  document.getElementById('phasechip').textContent=ph.chip;
+  document.getElementById('phasename').textContent=ph.name;
+  document.getElementById('phasetext').textContent=ph.tx;
+  updateForceTab(t);
+  /* territorial occupation coloring */
+  landPaths.forEach(lp=>{
+    const side=occAt(lp.region,t);
+    lp.el.classList.toggle('occ-jp',side==='jp');
+    lp.el.classList.toggle('occ-us',side==='us');
+    lp.el.classList.toggle('occ-home',side==='home');
+  });
+  /* battle / domestic markers */
+  EV.forEach(e=>{
+    const layerOn=e.r==='home'?lyr.hm.checked:lyr.ev.checked;
+    const show=layerOn && t>=e.t-0.02;
+    e.node.style.display=show?'':'none';
+    const active=show && t<=e.t2+0.5;
+    e.node.classList.toggle('active',active);
+    e.node.style.opacity=show?(active?1:0.5):0;
+  });
+  /* units */
+  UN.forEach(u=>{
+    const layerOn=u.side==='jp'?lyr.jp.checked:lyr.us.checked;
+    const alive=t>=u.t0 && t<=u.tEnd+0.25;
+    const show=layerOn&&alive;
+    u.node.style.display=show?'':'none';
+    u.trail.style.display=show?'':'none';
+    if(show){
+      const p=unitPos(u,t);
+      u.node.setAttribute('transform',`translate(${px(p[0])},${py(p[1])})`);
+      u.node.style.opacity=t>u.tEnd?0.45:1;
+      const passed=u.kf.filter(k=>k[0]<=t).map(k=>P(k[1],k[2]));
+      passed.push(P(p[0],p[1]));
+      u.trail.setAttribute('points',passed.join(' '));
+    }
+  });
+  /* live-update selected unit's composition */
+  updateUnitDetail();
+  /* event log */
+  const log=document.getElementById('eventlog');
+  log.innerHTML='';
+  const past=EV.filter(e=>t>=e.t-0.02);
+  if(!past.length){log.innerHTML='<div style="font-size:11px;color:var(--paper-dim)">（開戦前）</div>';}
+  past.slice().reverse().forEach(e=>{
+    const b=document.createElement('button');
+    b.innerHTML=`<span class="dot d-${e.r}"></span><span>${e.y}.${e.m} ${e.n}</span>`;
+    b.addEventListener('click',()=>selectEv(EV.indexOf(e)));
+    log.append(b);
+  });
+}
+slider.addEventListener('input',render);
+
+/* ---------- playback ---------- */
+const playbtn=document.getElementById('playbtn');
+let playing=false,raf=null,last=0;
+function step(ts){
+  if(!playing)return;
+  if(!last)last=ts;
+  const dt=(ts-last)/1000; last=ts;
+  let v=+slider.value + dt*2.2;
+  if(v>=45.7){v=45.7;togglePlay(false);}
+  slider.value=v; render();
+  if(playing)raf=requestAnimationFrame(step);
+}
+function togglePlay(state){
+  playing=state===undefined?!playing:state;
+  playbtn.textContent=playing?'❚❚':'▶';
+  last=0;
+  if(playing){if(+slider.value>=45.6)slider.value=0;raf=requestAnimationFrame(step);}
+  else cancelAnimationFrame(raf);
+}
+playbtn.addEventListener('click',()=>togglePlay());
+
+/* ---------- ① 総戦力タブ 構築・更新 ---------- */
+function totAt(side,t){
+  const a=TOT[side];
+  if(t<=a[0][0])return a[0][1];
+  if(t>=a[a.length-1][0])return a[a.length-1][1];
+  let i=0;while(a[i+1][0]<t)i++;
+  const f=(t-a[i][0])/(a[i+1][0]-a[i][0]),o={};
+  FTKEYS.forEach(k=>o[k]=a[i][1][k]+(a[i+1][1][k]-a[i][1][k])*f);
+  return o;
+}
+const ftFmt=(k,v)=>k==='hei'?Math.round(v/10000)+'万':k==='ac'?Math.round(v).toLocaleString('ja-JP')+'機':Math.round(v)+'隻';
+const ftgrid=document.getElementById('ftgrid');
+const ftCells={};
+FTKEYS.forEach(k=>{
+  const ic=document.createElementNS(NS,'svg');ic.setAttribute('viewBox','0 0 24 14');
+  ic.append(el('path',{d:ICO[k],fill:'#b6ad93'}));
+  ftgrid.append(ic);
+  const lb=document.createElement('span');lb.className='ftk';lb.textContent=KLBL[k];ftgrid.append(lb);
+  const j=document.createElement('span');j.className='ftv jp';ftgrid.append(j);
+  const u=document.createElement('span');u.className='ftv us';ftgrid.append(u);
+  ftCells[k]=[j,u];
+});
+document.getElementById('fthead').addEventListener('click',()=>document.getElementById('forcetab').classList.toggle('closed'));
+function updateForceTab(t){
+  const j=totAt('jp',t),u=totAt('us',t);
+  FTKEYS.forEach(k=>{ftCells[k][0].textContent=ftFmt(k,j[k]);ftCells[k][1].textContent=ftFmt(k,u[k]);});
+}
+
+/* ---------- ②③ 戦闘詳細ビューア エンジン ---------- */
+const bvO=document.getElementById('bvOverlay'),bvMapEl=document.getElementById('bvmap'),
+      bvSlider=document.getElementById('bvslider'),bvTimeEl=document.getElementById('bvtime'),
+      bvPlayBtn=document.getElementById('bvplay');
+let CB=null,bvPlaying=false,bvRaf=null,bvLast=0,bvSel=null;
+const bpx=(s,lon)=>(lon-s.ext[0])/(s.ext[1]-s.ext[0])*900;
+const bpy=(s,lat)=>(s.ext[3]-lat)/(s.ext[3]-s.ext[2])*560;
+const BG={cv:1.7,bb:1.55,ca:1.25,dd:1,ss:1.15,tr:1.25,base:1.5,lnd:1.2};
+const BICON={cv:'cv',bb:'bb',ca:'sh',dd:'sh',ss:'ss',tr:'tr',base:'base'};
+const BTPN={cv:'空母／空母部隊',bb:'戦艦／水上部隊',ca:'重巡',dd:'駆逐艦',ss:'潜水艦',tr:'輸送船団',base:'基地',lnd:'地上部隊'};
+const BVLANDS={CORAL:[15,16,17],LEYTE:[8,9,10]};   /* indices into `lands` */
+function bvUnitPos(u,h){
+  const kf=u.kf;
+  if(h<=kf[0][0])return[kf[0][1],kf[0][2]];
+  if(h>=kf[kf.length-1][0])return[kf[kf.length-1][1],kf[kf.length-1][2]];
+  let i=0;while(kf[i+1][0]<h)i++;
+  const a=kf[i],b=kf[i+1],f=(h-a[0])/(b[0]-a[0]||1);
+  return[a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f];
+}
+function bvClock(s,h){
+  const tm=s.bh+h,day=Math.min(s.days.length-1,Math.floor(tm/24));
+  const hh=Math.floor(tm%24),mm=Math.floor((tm%1)*60);
+  return `${s.days[day]} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+}
+function bvClockShort(s,h){
+  const tm=s.bh+h,day=Math.min(s.dshort.length-1,Math.floor(tm/24));
+  const hh=Math.floor(tm%24),mm=Math.floor((tm%1)*60);
+  return `${s.dshort[day]} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+}
+function openBattle(id){
+  const s=BS[id]; if(!s)return;
+  CB=s; bvSel=null; bvTogglePlay(false);
+  document.getElementById('bvtitle').textContent=s.title;
+  document.getElementById('bvds').textContent=s.ds;
+  document.getElementById('bvunit').innerHTML='<div class="empty">艦船・部隊マークをクリックすると、投入された艦名・編成・指揮官を表示します。マークの形は艦種を表します。</div>';
+  bvSlider.max=s.hours; bvSlider.value=0;
+  buildBattle(s);
+  bvO.classList.add('open');
+  bvRender();
+}
+function closeBattle(){bvTogglePlay(false);bvO.classList.remove('open');CB=null;}
+document.getElementById('bvclose').addEventListener('click',closeBattle);
+bvO.addEventListener('click',e=>{if(e.target===bvO)closeBattle()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&CB)closeBattle()});
+function buildBattle(s){
+  bvMapEl.innerHTML='';
+  (BVLANDS[s.land]||[]).forEach(idx=>{
+    bvMapEl.append(el('polygon',{points:lands[idx].map(p=>bpx(s,p[0]).toFixed(1)+','+bpy(s,p[1]).toFixed(1)).join(' '),class:'bvland'}));
+  });
+  (s.isl||[]).forEach(i=>{
+    bvMapEl.append(el('circle',{cx:bpx(s,i[0]),cy:bpy(s,i[1]),r:i[3]||5,class:'island'}));
+    if(i[2]){const t=el('text',{x:bpx(s,i[0])+9,y:bpy(s,i[1])-7,class:'landlabel small'});t.textContent=i[2];bvMapEl.append(t);}
+  });
+  s.stg=el('g',{}); bvMapEl.append(s.stg);
+  s.ung=el('g',{}); bvMapEl.append(s.ung);
+  s.un.forEach((u,i)=>{
+    u.t0=u.kf[0][0];
+    const g=el('g',{class:'bu '+u.side,tabindex:'0',role:'button','aria-label':u.n});
+    const sc=BG[u.tp]||1.2;
+    const gl=el('g',{transform:`scale(${sc})`});
+    if(u.tp==='lnd')gl.append(el('path',{d:TOTSU,class:'glyph'}));
+    else gl.append(el('path',{d:ICO[BICON[u.tp]],class:'glyph',transform:'translate(-12,-7)'}));
+    g.append(gl);
+    const nm=el('text',{y:18});nm.textContent=u.n;g.append(nm);
+    g.style.display='none';
+    g.addEventListener('click',()=>bvSelect(i));
+    g.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();bvSelect(i)}});
+    s.ung.append(g); u.node=g;
+  });
+}
+function bvSelect(i){
+  bvSel=i;
+  CB.un.forEach(u=>u.node.classList.remove('sel'));
+  CB.un[i].node.classList.add('sel');
+  bvShowUnit();
+}
+function bvShowUnit(){
+  if(bvSel===null||!CB)return;
+  const u=CB.un[bvSel],h=+bvSlider.value;
+  const dead=u.die!==undefined&&h>=u.die;
+  const burning=u.dmg!==undefined&&h>=u.dmg&&!dead;
+  document.getElementById('bvunit').innerHTML=
+   `<div class="dname">${u.n}</div>`+
+   `<span class="badge ${u.side}">${u.side==='jp'?'日本軍':'連合軍'}・${BTPN[u.tp]}</span>`+
+   (dead?'<span class="badge end">喪失</span>':burning?'<span class="badge draw">被弾・火災</span>':'')+
+   `<div style="margin-top:4px">${u.dt||''}</div>`;
+}
+function bvRender(){
+  if(!CB)return;
+  const s=CB,h=+bvSlider.value;
+  bvTimeEl.textContent=bvClock(s,h);
+  let ph=s.ph[0]; s.ph.forEach(p=>{if(h>=p[0])ph=p});
+  document.getElementById('bvphname').textContent=ph[1];
+  document.getElementById('bvphtx').textContent=ph[2];
+  /* units */
+  s.un.forEach(u=>{
+    const show=h>=u.t0;
+    u.node.style.display=show?'':'none';
+    if(!show)return;
+    const p=bvUnitPos(u,h);
+    u.node.setAttribute('transform',`translate(${bpx(s,p[0]).toFixed(1)},${bpy(s,p[1]).toFixed(1)})`);
+    const dead=u.die!==undefined&&h>=u.die;
+    const burning=u.dmg!==undefined&&h>=u.dmg&&!dead;
+    u.node.classList.toggle('dead',dead);
+    let f=u.node.querySelector('.fire');
+    if(burning){if(!f){f=el('circle',{class:'fire',r:8});u.node.insertBefore(f,u.node.firstChild);}}
+    else if(f)f.remove();
+    let c=u.node.querySelector('.crossg');
+    if(dead){
+      if(!c){
+        c=el('g',{class:'crossg cross'});
+        c.append(el('line',{x1:-9,y1:-9,x2:9,y2:9}));
+        c.append(el('line',{x1:9,y1:-9,x2:-9,y2:9}));
+        u.node.append(c);
+      }
+    }else if(c)c.remove();
+  });
+  /* strikes (attack routes + moving plane) */
+  s.stg.innerHTML='';
+  (s.st||[]).forEach(st=>{
+    if(h<st.h0||h>st.h1)return;
+    const fu=s.un.find(u=>u.id===st.f),tu=s.un.find(u=>u.id===st.t);
+    if(!fu||!tu)return;
+    const a=bvUnitPos(fu,h),b=bvUnitPos(tu,h);
+    const x1=bpx(s,a[0]),y1=bpy(s,a[1]),x2=bpx(s,b[0]),y2=bpy(s,b[1]);
+    s.stg.append(el('line',{x1,y1,x2,y2,class:'strike '+st.side}));
+    const f=(h-st.h0)/(st.h1-st.h0);
+    const mx=x1+(x2-x1)*f,my=y1+(y2-y1)*f;
+    const ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+    s.stg.append(el('path',{d:ICO.ac,class:'splane '+st.side,
+      transform:`translate(${mx.toFixed(1)},${my.toFixed(1)}) rotate(${(ang+90).toFixed(1)}) scale(0.9) translate(-12,-7)`}));
+    const lt=el('text',{x:(x1+x2)/2,y:(y1+y2)/2-9,class:'stlabel'});lt.textContent=st.n;s.stg.append(lt);
+  });
+  /* losses ticker */
+  const items=[];
+  s.un.forEach(u=>{if(u.die!==undefined&&h>=u.die)items.push({h:u.die,side:u.side,tx:u.dieN||u.n+' 喪失'})});
+  (s.ls||[]).forEach(l=>{if(h>=l.h)items.push(l)});
+  items.sort((a,b)=>a.h-b.h);
+  const lb=document.getElementById('bvloss');
+  if(!items.length){lb.innerHTML='<div style="font-size:11px;color:var(--paper-dim)">（損失はまだ発生していません）</div>';}
+  else{
+    lb.innerHTML='';
+    items.forEach(l=>{
+      const d=document.createElement('div');d.className='li '+l.side;
+      d.innerHTML=`<span class="lt">${bvClockShort(s,l.h)}</span><span>${l.tx}</span>`;
+      lb.append(d);
+    });
+  }
+  if(bvSel!==null)bvShowUnit();
+}
+bvSlider.addEventListener('input',bvRender);
+function bvStep(ts){
+  if(!bvPlaying||!CB)return;
+  if(!bvLast)bvLast=ts;
+  const dt=(ts-bvLast)/1000; bvLast=ts;
+  let v=+bvSlider.value + dt*(CB.spd||2);
+  if(v>=CB.hours){v=CB.hours;bvTogglePlay(false);}
+  bvSlider.value=v; bvRender();
+  if(bvPlaying)bvRaf=requestAnimationFrame(bvStep);
+}
+function bvTogglePlay(state){
+  bvPlaying=state===undefined?!bvPlaying:state;
+  bvPlayBtn.textContent=bvPlaying?'❚❚':'▶';
+  bvLast=0;
+  if(bvPlaying&&CB){if(+bvSlider.value>=CB.hours-0.1)bvSlider.value=0;bvRaf=requestAnimationFrame(bvStep);}
+  else cancelAnimationFrame(bvRaf);
+}
+bvPlayBtn.addEventListener('click',()=>bvTogglePlay());
+
+render();
+</script>
+</body>
+</html>
